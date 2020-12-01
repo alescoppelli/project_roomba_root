@@ -11,7 +11,15 @@
 #define  ROOMBA_NAME_LEN         50
 #define  ROOMBA_MODEL_LEN        50
 #define  NUMBER_OF_STATES        15
+#define  NUMBER_OF_EVENTS        15
 #define  NUMBER_OF_TRANSACTIONS  15
+#define  MAX_LEN_STR_EVENT_STATE 30
+
+typedef struct _event_t {
+      char name[MAX_LEN_STR_EVENT_STATE];
+      char from_state[MAX_LEN_STR_EVENT_STATE];
+      char to_state[MAX_LEN_STR_EVENT_STATE];
+} event_t;
 
 
 typedef struct _roomba_roomba_obj_t {
@@ -19,10 +27,12 @@ typedef struct _roomba_roomba_obj_t {
     int16_t a;
     int16_t b;
     int16_t position_free_slot_array_states;
+    int16_t position_free_slot_array_events;
     int16_t position_free_slot_array_transactions;
 
     char* transactions[NUMBER_OF_TRANSACTIONS];    
     char* states[NUMBER_OF_STATES];
+    event_t* events[NUMBER_OF_EVENTS];
     char  name[ROOMBA_NAME_LEN];
     char  model[ROOMBA_MODEL_LEN];
 } roomba_roomba_obj_t;
@@ -51,6 +61,7 @@ STATIC mp_obj_t roomba_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     strncpy(self->name,(const char*)str_name,str_name_len);
     strncpy(self->model,(const  char*)str_model,str_model_len);
     self->position_free_slot_array_states=0; 
+    self->position_free_slot_array_events=0; 
     self->position_free_slot_array_transactions=0;
 
     return MP_OBJ_FROM_PTR(self);
@@ -69,7 +80,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(roomba_sum_obj, roomba_sum);
 
 
 
-//Class method 'add_states'
+//Class method 'add_state'
 STATIC mp_obj_t roomba_add_state(mp_obj_t self_in, mp_obj_t str_state_in ) {
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
     GET_STR_DATA_LEN(str_state_in, str_state,  str_state_len);
@@ -111,7 +122,7 @@ STATIC mp_obj_t roomba_view_states(mp_obj_t self_in ) {
 MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_states_obj, roomba_view_states);
 
 
-//Class method 'exist_states'
+//Class method 'exist_state'
 STATIC mp_obj_t roomba_exist_state(mp_obj_t self_in, mp_obj_t str_state_in ) {
     int ret;
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -127,6 +138,141 @@ STATIC mp_obj_t roomba_exist_state(mp_obj_t self_in, mp_obj_t str_state_in ) {
 }
 
 MP_DEFINE_CONST_FUN_OBJ_2(roomba_exist_state_obj, roomba_exist_state);
+
+
+//Class method 'add_event'
+STATIC mp_obj_t roomba_add_event(size_t n_args, const mp_obj_t* args ) {
+
+    int ret;
+    int founded=0;
+
+    if( n_args != 4 ){
+       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+       mp_print_str(MP_PYTHON_PRINTER, "Wrong numbers pf parameters !");
+       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+      return mp_const_false;
+    }
+   
+    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+    GET_STR_DATA_LEN(args[1], str_event,      str_event_len);
+    GET_STR_DATA_LEN(args[2], str_from_state, str_from_state_len);
+    GET_STR_DATA_LEN(args[3], str_to_state,   str_to_state_len);
+    
+
+
+    //PROTOTYPE TOOL FUNCTIONS
+    //
+     founded=0;
+     for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
+         ret=strcmp((const char*)str_from_state,(const char*)self->states[i]);
+         if( ret == 0 ){
+              founded = 1;
+         }
+     }
+     if(founded == 0){
+          mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+          mp_print_str(MP_PYTHON_PRINTER, "The state ");
+          mp_print_str(MP_PYTHON_PRINTER, " -- ");
+          mp_print_str(MP_PYTHON_PRINTER,(const char*)str_from_state );
+          mp_print_str(MP_PYTHON_PRINTER, " -- ");
+          mp_print_str(MP_PYTHON_PRINTER, " doesn't exist! ");
+     }
+    ////////////////////
+    //PROTOTYPE TOOL FUNCTIONS
+    //
+     founded=0;
+     for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
+         ret=strcmp((const char*)str_to_state,(const char*)self->states[i]);
+         if( ret == 0 ){
+              founded = 1;
+         }
+     }
+     if(founded == 0){
+          mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+          mp_print_str(MP_PYTHON_PRINTER, "The state ");
+          mp_print_str(MP_PYTHON_PRINTER, " -- ");
+          mp_print_str(MP_PYTHON_PRINTER,(const char*)str_to_state );
+          mp_print_str(MP_PYTHON_PRINTER, " -- ");
+          mp_print_str(MP_PYTHON_PRINTER, " doesn't exist! ");
+     }
+    ////////////////////
+
+     
+    event_t* e = (event_t*)m_malloc(sizeof(event_t) );
+    strcpy(e->name, (const char*)str_event);
+    strcpy(e->from_state, (const char*)str_from_state);
+    strcpy(e->to_state, (const char*)str_to_state);
+    self->events[self->position_free_slot_array_events]=e;
+    
+  
+    self->position_free_slot_array_events+=1;
+    return mp_const_none;
+}
+
+
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(roomba_add_event_obj,4,4, roomba_add_event);
+
+//typedef struct _event_t {
+//      char name[MAX_LEN_STR_EVENT_STATE];
+//      char from_state[MAX_LEN_STR_EVENT_STATE];
+//      char to_state[MAX_LEN_STR_EVENT_STATE];
+//} event_t;
+//Class method 'view_events'
+STATIC mp_obj_t roomba_view_events(mp_obj_t self_in ) {
+    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    
+    if(self->position_free_slot_array_events == 0){
+       mp_print_str(MP_PYTHON_PRINTER, "You haven't added any event yet.");
+       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+
+    }else{
+       mp_print_str(MP_PYTHON_PRINTER, "List of events ( and associated states):  ");
+       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+      
+       for(int16_t i=0; i<self->position_free_slot_array_events;i++){ 
+           mp_print_str(MP_PYTHON_PRINTER, " Event:  ");
+           mp_print_str(MP_PYTHON_PRINTER,(const char*)self->events[i]->name );
+           mp_print_str(MP_PYTHON_PRINTER, " ( ");
+           mp_print_str(MP_PYTHON_PRINTER, " From:  ");
+           mp_print_str(MP_PYTHON_PRINTER,(const char*)self->events[i]->from_state );
+           mp_print_str(MP_PYTHON_PRINTER, " To:  ");
+           mp_print_str(MP_PYTHON_PRINTER,(const char*)self->events[i]->to_state );
+           mp_print_str(MP_PYTHON_PRINTER, " ) ");
+           mp_print_str(MP_PYTHON_PRINTER, "\n");
+       }
+      mp_print_str(MP_PYTHON_PRINTER, "\n");
+    } 
+        
+    return mp_const_none;
+}
+
+MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_events_obj, roomba_view_events);
+
+
+//Class method 'exist_event'
+//STATIC mp_obj_t roomba_exist_event(mp_obj_t self_in, mp_obj_t str_event_in ) {
+//    int ret;
+//    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
+//    GET_STR_DATA_LEN(str_event_in, str_event,  str_event_len);
+//    
+//     for(int16_t i=0; i<self->position_free_slot_array_events;i++){ 
+//         ret=strcmp((const char*)str_event,(const char*)self->events[i]);
+//         if( ret == 0 )
+//              return mp_const_true;
+//     }
+//         
+//    return mp_const_false;
+//}
+
+//MP_DEFINE_CONST_FUN_OBJ_2(roomba_exist_event_obj, roomba_exist_event);
+
+
+
+
+
+
+
+
 
 
 //from->to
@@ -202,7 +348,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_transactions_obj, roomba_view_transactions
 
 //Class method 'exist_transaction'
 STATIC mp_obj_t roomba_exist_transaction(mp_obj_t self_in, mp_obj_t str_from_in,mp_obj_t str_to_in ) {
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    //roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
     GET_STR_DATA_LEN(str_from_in, str_from,  str_from_len);
     GET_STR_DATA_LEN(str_to_in, str_to,  str_to_len);
 
@@ -243,7 +389,7 @@ MP_DEFINE_CONST_FUN_OBJ_3(roomba_exist_transaction_obj, roomba_exist_transaction
 //robot.is_transaction_allowed("A","C") //-> False
 //Class method 'is_transaction_allowed'
 STATIC mp_obj_t roomba_is_transaction_allowed(mp_obj_t self_in, mp_obj_t str_from_in,mp_obj_t str_to_in ) {
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    //roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
     GET_STR_DATA_LEN(str_from_in, str_from,  str_from_len);
     GET_STR_DATA_LEN(str_to_in, str_to,  str_to_len);
 
@@ -286,6 +432,9 @@ STATIC const mp_rom_map_elem_t roomba_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_add_state), MP_ROM_PTR(&roomba_add_state_obj) },
     { MP_ROM_QSTR(MP_QSTR_view_states), MP_ROM_PTR(&roomba_view_states_obj) },
     { MP_ROM_QSTR(MP_QSTR_exist_state), MP_ROM_PTR(&roomba_exist_state_obj) },
+    { MP_ROM_QSTR(MP_QSTR_add_event), MP_ROM_PTR(&roomba_add_event_obj) },
+    { MP_ROM_QSTR(MP_QSTR_view_events), MP_ROM_PTR(&roomba_view_events_obj) },
+    //{ MP_ROM_QSTR(MP_QSTR_exist_event), MP_ROM_PTR(&roomba_exist_event_obj) },
     { MP_ROM_QSTR(MP_QSTR_add_transaction), MP_ROM_PTR(&roomba_add_transaction_obj) },
     { MP_ROM_QSTR(MP_QSTR_view_transactions), MP_ROM_PTR(&roomba_view_transactions_obj) },
     { MP_ROM_QSTR(MP_QSTR_exist_transaction), MP_ROM_PTR(&roomba_exist_transaction_obj) },
