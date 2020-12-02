@@ -24,3 +24,10 @@ if __name__ == "__main__":
 	robot.add_event("POWER","SAFE","ASLEEP")
 	robot.add_event("POWER","FULL","ASLEEP")
 
+	robot.set_initial_current_state("ASLEEP")
+
+
+
+
+
+
