@@ -1,0 +1,12 @@
+#!/bin/sh
+
+SERIAL_PORT=/dev/ttyUSB0
+
+view_serial_port(){
+
+    echo "Serial port: $(SERIAL_PORT)
+}
+
+
+
+view_serial_port

@@ -1,0 +1,164 @@
+----------------------------------------------------------------
+       FILE DA ESAMINARE UTILI PER GESTIRE PERIFERICHE
+----------------------------------------------------------------
+(a) micropython modonewire
+(b) pyboard.py tool
+(c) dhylands/rshell  ( micropython )
+
+
+
+
+----------------------------------------------------------------
+		PER GESTIRE LE PORTE SERIALI
+----------------------------------------------------------------
+
+in ports/stm32/STM32F411DISC
+
+   in 'mpconfigboard.h'
+   
+#define MICROPY_HW_UART6_TX     (pin_C6)
+#define MICROPY_HW_UART6_RX     (pin_C7)
+
+
+
+-----nei file ports/stm32/uart.[h,c]
+
+typedef enum {
+    PYB_UART_NONE = 0,
+    PYB_UART_1 = 1,
+    PYB_UART_2 = 2,
+    PYB_UART_3 = 3,
+    PYB_UART_4 = 4,
+    PYB_UART_5 = 5,
+    PYB_UART_6 = 6,
+    PYB_UART_7 = 7,
+    PYB_UART_8 = 8,
+    PYB_UART_9 = 9,
+    PYB_UART_10 = 10,
+} pyb_uart_t;
+
+typedef struct _pyb_uart_obj_t {
+    mp_obj_base_t base;
+    USART_TypeDef *uartx;
+    pyb_uart_t uart_id : 8;
+    bool is_static : 1;
+    bool is_enabled : 1;
+    bool attached_to_repl;              // whether the UART is attached to REPL
+    byte char_width;                    // 0 for 7,8 bit chars, 1 for 9 bit chars
+    uint16_t char_mask;                 // 0x7f for 7 bit, 0xff for 8 bit, 0x1ff for 9 bit
+    uint16_t timeout;                   // timeout waiting for first char
+    uint16_t timeout_char;              // timeout waiting between chars
+    uint16_t read_buf_len;              // len in chars; buf can hold len-1 chars
+    volatile uint16_t read_buf_head;    // indexes first empty slot
+    uint16_t read_buf_tail;             // indexes first full slot (not full if equals head)
+    byte *read_buf;                     // byte or uint16_t, depending on char size
+    uint16_t mp_irq_trigger;            // user IRQ trigger mask
+    uint16_t mp_irq_flags;              // user IRQ active IRQ flags
+    mp_irq_obj_t *mp_irq_obj;           // user IRQ object
+} pyb_uart_obj_t;
+
+mp_uint_t uart_rx_any(pyb_uart_obj_t *self) {
+    int buffer_bytes = self->read_buf_head - self->read_buf_tail;
+    if (buffer_bytes < 0) {
+        return buffer_bytes + self->read_buf_len;
+    } else if (buffer_bytes > 0) {
+        return buffer_bytes;
+    } else {
+        return UART_RXNE_IS_SET(self->uartx) != 0;
+    }
+}
+
+// Waits at most timeout milliseconds for at least 1 char to become ready for
+// reading (from buf or for direct reading).
+// Returns true if something available, false if not.
+bool uart_rx_wait(pyb_uart_obj_t *self, uint32_t timeout) {
+    uint32_t start = HAL_GetTick();
+    for (;;) {
+        if (self->read_buf_tail != self->read_buf_head || UART_RXNE_IS_SET(self->uartx)) {
+            return true; // have at least 1 char ready for reading
+        }
+        if (HAL_GetTick() - start >= timeout) {
+            return false; // timeout
+        }
+        MICROPY_EVENT_POLL_HOOK
+    }
+}
+
+
+// assumes there is a character available
+int uart_rx_char(pyb_uart_obj_t *self) {
+...
+...
+}
+
+
+// Waits at most timeout milliseconds for TX register to become empty.
+// Returns true if can write, false if can't.
+bool uart_tx_wait(pyb_uart_obj_t *self, uint32_t timeout) {
+    uint32_t start = HAL_GetTick();
+    for (;;) {
+        if (uart_tx_avail(self)) {
+            return true; // tx register is empty
+        }
+        if (HAL_GetTick() - start >= timeout) {
+            return false; // timeout
+        }
+        MICROPY_EVENT_POLL_HOOK
+    }
+}	
+
+// Waits at most timeout milliseconds for UART flag to be set.
+// Returns true if flag is/was set, false on timeout.
+STATIC bool uart_wait_flag_set(pyb_uart_obj_t *self, uint32_t flag, uint32_t timeout) {
+    // Note: we don't use WFI to idle in this loop because UART tx doesn't generate
+    // an interrupt and the flag can be set quickly if the baudrate is large.
+    uint32_t start = HAL_GetTick();
+    for (;;) {
+        #if defined(STM32F4)
+        if (self->uartx->SR & flag) {
+            return true;
+        }
+        #else
+        if (self->uartx->ISR & flag) {
+            return true;
+        }
+        #endif
+        if (timeout == 0 || HAL_GetTick() - start >= timeout) {
+            return false; // timeout
+        }
+    }
+}
+
+// src - a pointer to the data to send (16-bit aligned for 9-bit chars)
+// num_chars - number of characters to send (9-bit chars count for 2 bytes from src)
+// *errcode - returns 0 for success, MP_Exxx on error
+// returns the number of characters sent (valid even if there was an error)
+size_t uart_tx_data(pyb_uart_obj_t *self, const void *src_in, size_t num_chars, int *errcode) {
+...
+...
+...
+}
+
+void uart_tx_strn(pyb_uart_obj_t *uart_obj, const char *str, uint len) {
+...
+...
+}
+
+void uart_set_rxbuf(pyb_uart_obj_t *self, size_t len, void *buf) {
+...
+...
+}
+
+
+------------------------------------------------------------------------
+			COMANDI UTILI
+------------------------------------------------------------------------
+
+$ dmesg -wH
+
+$ conda install -c anaconda pyserial
+
+
+
+
+

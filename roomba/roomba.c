@@ -6,6 +6,9 @@
 #include "py/obj.h"
 #include "py/objstr.h"
 #include "py/objmodule.h"
+#include "py/mperrno.h"
+#include "ports/stm32/uart.h"
+
 
 #define  ROOMBA_NAME_LEN            50
 #define  ROOMBA_MODEL_LEN           50
@@ -13,6 +16,7 @@
 #define  NUMBER_OF_EVENTS           15
 #define  NUMBER_OF_TRANSACTIONS     15
 #define  MAX_LEN_STR_EVENT_OR_STATE 30
+#define  TIMEOUT_TX_MILLISECONDS    50
 
 typedef struct _event_t {
       char name[MAX_LEN_STR_EVENT_OR_STATE];
@@ -33,10 +37,53 @@ typedef struct _roomba_roomba_obj_t {
     char  name[ROOMBA_NAME_LEN];
     char  model[ROOMBA_MODEL_LEN];
     char  current_state[MAX_LEN_STR_EVENT_OR_STATE];
+    pyb_uart_obj_t* serial;
 } roomba_roomba_obj_t;
 
 const mp_obj_type_t roomba_roomba_type;
 
+//
+//START FUNCTIONS UTILITY
+//
+char* make_state(char* state  ){
+      size_t num_chars=sizeof(&state);
+      char*  str_ptr = (char*)m_malloc(sizeof(char) * num_chars+1);
+      strcpy(str_ptr,(const char*) state);
+      return str_ptr;
+}
+
+event_t* make_event(char* event, char* from_state, char* to_state){
+
+    event_t* evt_ptr = (event_t*)m_malloc(sizeof(event_t) );
+    strcpy(evt_ptr->name, (const char*) event);
+    strcpy(evt_ptr->from_state, (const char*) from_state);
+    strcpy(evt_ptr->to_state, (const char*) to_state);
+
+    return evt_ptr;
+}
+uint8_t from_str_event_to_code_event(char* event){
+     uint8_t data=0;
+        
+   if(!strcmp(event,"START")){
+        data=128;
+   }else if( !strcmp(event,"CONTROL")   ){
+        data=130;
+   }else if( !strcmp(event,"SAFE")   ){
+        data=131;
+   }else if( !strcmp(event,"FULL")   ){
+        data=132;
+   }else if( !strcmp(event,"POWER")   ){
+        data=133;
+   }else{
+   
+   }
+
+  return data;
+}
+
+//
+//END FUNCTIONS UTILITY
+//
 STATIC void roomba_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -54,37 +101,87 @@ STATIC mp_obj_t roomba_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     self->base.type = &roomba_roomba_type;
  
     GET_STR_DATA_LEN(args[0], str_name,  str_name_len);
-    GET_STR_DATA_LEN(args[1], str_model, str_model_len);
+    //GET_STR_DATA_LEN(args[1], str_model, str_model_len);
  
     strncpy(self->name,(const char*)str_name,str_name_len);
-    strncpy(self->model,(const  char*)str_model,str_model_len);
+    //strncpy(self->model,(const  char*)str_model,str_model_len);
+    if (mp_obj_get_type(args[1]) == &pyb_uart_type) {
+         self->serial=args[1];
+    }else{
+         mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a serial line type.");
+    }
+ 
     self->position_free_slot_array_states=0; 
     self->position_free_slot_array_events=0; 
     self->position_free_slot_array_transactions=0;
 
     
+    self->states[self->position_free_slot_array_states]=make_state("ASLEEP");   
+    self->position_free_slot_array_states+=1;
+    
+    self->states[self->position_free_slot_array_states]=make_state("ON");   
+    self->position_free_slot_array_states+=1;
+    
+    self->states[self->position_free_slot_array_states]=make_state("PASSIVE");   
+    self->position_free_slot_array_states+=1;
+
+    self->states[self->position_free_slot_array_states]=make_state("SAFE");   
+    self->position_free_slot_array_states+=1;
+
+    self->states[self->position_free_slot_array_states]=make_state("FULL");   
+    self->position_free_slot_array_states+=1;
+
+    strcpy(self->current_state, "ASLEEP");
+    
+ 
+    self->events[self->position_free_slot_array_events]=make_event("WAKE_UP","ASLEEP","ON");
+    self->position_free_slot_array_events+=1;
+    
+    self->events[self->position_free_slot_array_events]=make_event("START","ON","PASSIVE" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("STOP","PASSIVE","ON" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("SENSORS","PASSIVE","PASSIVE" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("CONTROL","PASSIVE","SAFE" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("SAFETY_FAULT","SAFE","PASSIVE" );
+    self->position_free_slot_array_events+=1;      
+
+
+    self->events[self->position_free_slot_array_events]=make_event("DRIVE","SAFE","SAFE" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("SENSORS","SAFE","SAFE" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("SAFE","FULL","SAFE" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event( "FULL","SAFE","FULL");
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("SENSORS","FULL","FULL" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("DRIVE","FULL","FULL" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("POWER","SAFE","ASLEEP" );
+    self->position_free_slot_array_events+=1;      
+
+    self->events[self->position_free_slot_array_events]=make_event("POWER","FULL","ASLEEP" );
+    self->position_free_slot_array_events+=1;      
 
     return MP_OBJ_FROM_PTR(self);
 }
 
+
 //  ----------------Class methods ----------------
-//Class method 'add_state'
-STATIC mp_obj_t roomba_add_state(mp_obj_t self_in, mp_obj_t str_state_in ) {
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    GET_STR_DATA_LEN(str_state_in, str_state,  str_state_len);
-
-
-    
-    char* s = (char*)m_malloc(sizeof(char) * str_state_len+1);
-    strcpy(s, (const char*)str_state);
-    self->states[self->position_free_slot_array_states]=s;
-        
-    self->position_free_slot_array_states+=1;
-    return mp_const_none;
-}
-
-MP_DEFINE_CONST_FUN_OBJ_2(roomba_add_state_obj, roomba_add_state);
-
 //Class method 'view_states'
 STATIC mp_obj_t roomba_view_states(mp_obj_t self_in ) {
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -109,102 +206,6 @@ STATIC mp_obj_t roomba_view_states(mp_obj_t self_in ) {
 
 MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_states_obj, roomba_view_states);
 
-
-//Class method 'exist_state'
-STATIC mp_obj_t roomba_exist_state(mp_obj_t self_in, mp_obj_t str_state_in ) {
-    int ret;
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    GET_STR_DATA_LEN(str_state_in, str_state,  str_state_len);
-    
-     for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
-         ret=strcmp((const char*)str_state,(const char*)self->states[i]);
-         if( ret == 0 )
-              return mp_const_true;
-      }
-         
-    return mp_const_false;
-}
-
-MP_DEFINE_CONST_FUN_OBJ_2(roomba_exist_state_obj, roomba_exist_state);
-
-
-//Class method 'add_event'
-STATIC mp_obj_t roomba_add_event(size_t n_args, const mp_obj_t* args ) {
-
-    int ret;
-    int founded=0;
-
-    if( n_args != 4 ){
-       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-       mp_print_str(MP_PYTHON_PRINTER, "Wrong numbers pf parameters !");
-       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-      return mp_const_false;
-    }
-   
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-    GET_STR_DATA_LEN(args[1], str_event,      str_event_len);
-    GET_STR_DATA_LEN(args[2], str_from_state, str_from_state_len);
-    GET_STR_DATA_LEN(args[3], str_to_state,   str_to_state_len);
-    
-
-
-    //PROTOTYPE TOOL FUNCTIONS
-    //
-     founded=0;
-     for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
-         ret=strcmp((const char*)str_from_state,(const char*)self->states[i]);
-         if( ret == 0 ){
-              founded = 1;
-         }
-     }
-     if(founded == 0){
-          mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-          mp_print_str(MP_PYTHON_PRINTER, "The state ");
-          mp_print_str(MP_PYTHON_PRINTER, " -- ");
-          mp_print_str(MP_PYTHON_PRINTER,(const char*)str_from_state );
-          mp_print_str(MP_PYTHON_PRINTER, " -- ");
-          mp_print_str(MP_PYTHON_PRINTER, " doesn't exist! ");
-     }
-    ////////////////////
-    //PROTOTYPE TOOL FUNCTIONS
-    //
-     founded=0;
-     for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
-         ret=strcmp((const char*)str_to_state,(const char*)self->states[i]);
-         if( ret == 0 ){
-              founded = 1;
-         }
-     }
-     if(founded == 0){
-          mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-          mp_print_str(MP_PYTHON_PRINTER, "The state ");
-          mp_print_str(MP_PYTHON_PRINTER, " -- ");
-          mp_print_str(MP_PYTHON_PRINTER,(const char*)str_to_state );
-          mp_print_str(MP_PYTHON_PRINTER, " -- ");
-          mp_print_str(MP_PYTHON_PRINTER, " doesn't exist! ");
-     }
-    ////////////////////
-
-     
-    event_t* e = (event_t*)m_malloc(sizeof(event_t) );
-    strcpy(e->name, (const char*)str_event);
-    strcpy(e->from_state, (const char*)str_from_state);
-    strcpy(e->to_state, (const char*)str_to_state);
-    self->events[self->position_free_slot_array_events]=e;
-    
-  
-    self->position_free_slot_array_events+=1;
-    return mp_const_none;
-}
-
-
-MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(roomba_add_event_obj,4,4, roomba_add_event);
-
-//typedef struct _event_t {
-//      char name[MAX_LEN_STR_EVENT_OR_STATE];
-//      char from_state[MAX_LEN_STR_EVENT_OR_STATE];
-//      char to_state[MAX_LEN_STR_EVENT_OR_STATE];
-//} event_t;
 //Class method 'view_events'
 STATIC mp_obj_t roomba_view_events(mp_obj_t self_in ) {
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -236,46 +237,10 @@ STATIC mp_obj_t roomba_view_events(mp_obj_t self_in ) {
 
 MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_events_obj, roomba_view_events);
 
-
-//char  current_state[MAX_LEN_STR_EVENT_OR_STATE];
-//Class method 'set_initial_current_state'
-STATIC mp_obj_t roomba_set_initial_current_state(mp_obj_t self_in, mp_obj_t str_initial_current_state_in ) {
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    GET_STR_DATA_LEN(str_initial_current_state_in, str_initial_current_state,  str_initial_current_state_len);
-
-    strcpy(self->current_state, (const char*)str_initial_current_state);
-
-    return mp_const_none;
-}
-
-MP_DEFINE_CONST_FUN_OBJ_2(roomba_set_initial_current_state_obj, roomba_set_initial_current_state);
-
-
-//Class method 'view_current_state'
-STATIC mp_obj_t roomba_view_current_state(mp_obj_t self_in ) {
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-
-    mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-    mp_print_str(MP_PYTHON_PRINTER, "The current state is ");
-    mp_print_str(MP_PYTHON_PRINTER,(const char*)self->current_state );
-    mp_print_str(MP_PYTHON_PRINTER, "  \n");
-
-    return mp_const_none;
-}
-
-
-MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_current_state_obj, roomba_view_current_state);
-
-//typedef struct _event_t {
-//      char name[MAX_LEN_STR_EVENT_OR_STATE];
-//      char from_state[MAX_LEN_STR_EVENT_OR_STATE];
-//      char to_state[MAX_LEN_STR_EVENT_OR_STATE];
-//} event_t;
-//char  current_state[MAX_LEN_STR_EVENT_OR_STATE];
-//    event_t* events[NUMBER_OF_EVENTS];
 //Class method 'sending_event'
 STATIC mp_obj_t roomba_sending_event(mp_obj_t self_in, mp_obj_t str_sending_event_in ) {
     int ret;
+    int errcode;
     int event_founded=0;
 
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -295,6 +260,7 @@ STATIC mp_obj_t roomba_sending_event(mp_obj_t self_in, mp_obj_t str_sending_even
   
     for(int16_t i=0; i<self->position_free_slot_array_events;i++){ 
          event_founded = 0;
+         uint8_t data;
          ret=strcmp((const char*)str_sending_event,(const char*)self->events[i]->name);
          if( ret == 0 ){
               event_founded = 1;
@@ -315,13 +281,21 @@ STATIC mp_obj_t roomba_sending_event(mp_obj_t self_in, mp_obj_t str_sending_even
                 mp_print_str(MP_PYTHON_PRINTER,(const char*)self->events[i]->from_state );
                 mp_print_str(MP_PYTHON_PRINTER, "\n");
                 //END DEBUG
-
+                //QUI BISOGNA SPEDIRE SULLA SERIALE IL COMANDO ASSOCIATO
+                //IL MANUALE INDICA DI ASPETTARE 20mS TRA COMANDO E COMANDO
+                 //send_serial_event(self, self->events[i]->name);
+                 if( uart_tx_wait( self->serial, TIMEOUT_TX_MILLISECONDS) ){
+                    //uart_tx_data(self->serial, &data, 1, &errcode);
+                    data=from_str_event_to_code_event(self->events[i]->name);        
+                    uart_tx_data(self->serial, &data, 1, &errcode);   
+                    //SAREBBE OPPORTUNO METTERE UNA WAIT DI 20 mS       
+                 }
 
                  strcpy(self->current_state, (const char*)self->events[i]->to_state);
                  break;
              } 
          }else{
-
+             mp_print_str(MP_PYTHON_PRINTER, "SENDING EVENT: WTF !!!");
          }
 
 
@@ -335,174 +309,28 @@ STATIC mp_obj_t roomba_sending_event(mp_obj_t self_in, mp_obj_t str_sending_even
 MP_DEFINE_CONST_FUN_OBJ_2(roomba_sending_event_obj, roomba_sending_event);
 
 
-//from->to
-//Class method 'add_transaction'
-STATIC mp_obj_t roomba_add_transaction(mp_obj_t self_in, mp_obj_t str_from_in,mp_obj_t str_to_in ) {
+//Class method 'view_current_state'
+STATIC mp_obj_t roomba_view_current_state(mp_obj_t self_in ) {
     roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    GET_STR_DATA_LEN(str_from_in, str_from,  str_from_len);
-    GET_STR_DATA_LEN(str_to_in, str_to,  str_to_len);
 
-    if( roomba_exist_state(self_in,str_from_in ) == mp_const_false ){
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        mp_print_str(MP_PYTHON_PRINTER, "You didn't add this state: ");
-        mp_print_str(MP_PYTHON_PRINTER,(const char*)str_from );
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-       return mp_const_false;
-    }
-
-    if( roomba_exist_state(self_in,str_to_in ) == mp_const_false){
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        mp_print_str(MP_PYTHON_PRINTER, "You didn't add this state: ");
-        mp_print_str(MP_PYTHON_PRINTER,(const char*)str_to );
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-       return mp_const_false;
-    }
-
-    
-    char* f = (char*)m_malloc(sizeof(char) * str_from_len+1);
-    strcpy(f, (const char*)str_from);
-    self->transactions[self->position_free_slot_array_transactions]=f;
-    self->position_free_slot_array_transactions+=1;
-
-    char* t = (char*)m_malloc(sizeof(char) * str_to_len+1);
-    strcpy(t, (const char*)str_to);
-    self->transactions[self->position_free_slot_array_transactions]=t;
-    self->position_free_slot_array_transactions+=1;
-
+    mp_print_str(MP_PYTHON_PRINTER, "\n"); 
+    mp_print_str(MP_PYTHON_PRINTER, "The current state is ");
+    mp_print_str(MP_PYTHON_PRINTER,(const char*)self->current_state );
+    mp_print_str(MP_PYTHON_PRINTER, "  \n");
 
     return mp_const_none;
 }
 
-MP_DEFINE_CONST_FUN_OBJ_3(roomba_add_transaction_obj, roomba_add_transaction);
 
-//Class method 'view_transactions'
-STATIC mp_obj_t roomba_view_transactions(mp_obj_t self_in ) {
-    roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    
-    if(self->position_free_slot_array_transactions == 0){
-       mp_print_str(MP_PYTHON_PRINTER, "You haven't added any transaction yet.");
-       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-
-    }else{
-       mp_print_str(MP_PYTHON_PRINTER, "List of transactions:  ");
-       mp_print_str(MP_PYTHON_PRINTER, "\n"); 
-      
-       for(int16_t i=0; i<self->position_free_slot_array_transactions;i=i+2){
-           mp_print_str(MP_PYTHON_PRINTER, "From:  ");
-           mp_print_str(MP_PYTHON_PRINTER,(const char*)self->transactions[i] );
-           mp_print_str(MP_PYTHON_PRINTER, " To:  ");
-           mp_print_str(MP_PYTHON_PRINTER,(const char*)self->transactions[i+1] );
-           mp_print_str(MP_PYTHON_PRINTER, "\n");
-       }
-      mp_print_str(MP_PYTHON_PRINTER, "\n");
-    } 
-        
-    return mp_const_none;
-}
-
-MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_transactions_obj, roomba_view_transactions);
-
-
-
-
-
-//Class method 'exist_transaction'
-STATIC mp_obj_t roomba_exist_transaction(mp_obj_t self_in, mp_obj_t str_from_in,mp_obj_t str_to_in ) {
-    //roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    GET_STR_DATA_LEN(str_from_in, str_from,  str_from_len);
-    GET_STR_DATA_LEN(str_to_in, str_to,  str_to_len);
-
-    if( roomba_exist_state(self_in,str_from_in ) == mp_const_false ){
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        mp_print_str(MP_PYTHON_PRINTER, "You didn't add this state: ");
-        mp_print_str(MP_PYTHON_PRINTER,(const char*)str_from );
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-       return mp_const_false;
-    }
-
-    if( roomba_exist_state(self_in,str_to_in ) == mp_const_false){
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        mp_print_str(MP_PYTHON_PRINTER, "You didn't add this state: ");
-        mp_print_str(MP_PYTHON_PRINTER,(const char*)str_to );
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-       return mp_const_false;
-    }
-
-    //Bisogna verificare le coppie di stati
-    // for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
-    //     ret=strcmp((const char*)str_state,(const char*)self->states[i]);
-    //     if( ret == 0 )
-    //          return mp_const_true;
-    //  }
-         
-    return mp_const_false;
-}
-
-MP_DEFINE_CONST_FUN_OBJ_3(roomba_exist_transaction_obj, roomba_exist_transaction);
-
-
-
-
-
-
-
-//robot.is_transaction_allowed("A","C") //-> False
-//Class method 'is_transaction_allowed'
-STATIC mp_obj_t roomba_is_transaction_allowed(mp_obj_t self_in, mp_obj_t str_from_in,mp_obj_t str_to_in ) {
-    //roomba_roomba_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    GET_STR_DATA_LEN(str_from_in, str_from,  str_from_len);
-    GET_STR_DATA_LEN(str_to_in, str_to,  str_to_len);
-
-    if( roomba_exist_state(self_in,str_from_in ) == mp_const_false ){
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        mp_print_str(MP_PYTHON_PRINTER, "You didn't add this state: ");
-        mp_print_str(MP_PYTHON_PRINTER,(const char*)str_from );
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        return mp_const_false;
-    }
-
-    if( roomba_exist_state(self_in,str_to_in ) == mp_const_false){
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        mp_print_str(MP_PYTHON_PRINTER, "You didn't add this state: ");
-        mp_print_str(MP_PYTHON_PRINTER,(const char*)str_to );
-        mp_print_str(MP_PYTHON_PRINTER, "\n");
-        return mp_const_false;
-    }
-
-    //Bisogna verificare che la transizione sia tra le possibili
-    //e poi verificare se è permessa quindi in qualche maniera è in relazione
-    //all'evento che la scatenerebbe
-    // for(int16_t i=0; i<self->position_free_slot_array_states;i++){ 
-    //     ret=strcmp((const char*)str_state,(const char*)self->states[i]);
-    //     if( ret == 0 )
-    //          return mp_const_true;
-    //  }
-         
-    return mp_const_false;
-}
-
-MP_DEFINE_CONST_FUN_OBJ_3(roomba_is_transaction_allowed_obj, roomba_is_transaction_allowed);
-
-
-
+MP_DEFINE_CONST_FUN_OBJ_1(roomba_view_current_state_obj, roomba_view_current_state);
 
 
 STATIC const mp_rom_map_elem_t roomba_locals_dict_table[] = {
-    //{ MP_ROM_QSTR(MP_QSTR_mysum), MP_ROM_PTR(&roomba_sum_obj) },
-    { MP_ROM_QSTR(MP_QSTR_add_state), MP_ROM_PTR(&roomba_add_state_obj) },
-    { MP_ROM_QSTR(MP_QSTR_view_states), MP_ROM_PTR(&roomba_view_states_obj) },
-    { MP_ROM_QSTR(MP_QSTR_exist_state), MP_ROM_PTR(&roomba_exist_state_obj) },
-    { MP_ROM_QSTR(MP_QSTR_add_event), MP_ROM_PTR(&roomba_add_event_obj) },
-    { MP_ROM_QSTR(MP_QSTR_view_events), MP_ROM_PTR(&roomba_view_events_obj) },
-    { MP_ROM_QSTR(MP_QSTR_sending_event), MP_ROM_PTR(&roomba_sending_event_obj) },
-    //{ MP_ROM_QSTR(MP_QSTR_exist_event), MP_ROM_PTR(&roomba_exist_event_obj) },
-    { MP_ROM_QSTR(MP_QSTR_set_initial_current_state), MP_ROM_PTR(&roomba_set_initial_current_state_obj) },
-    { MP_ROM_QSTR(MP_QSTR_view_current_state), MP_ROM_PTR(&roomba_view_current_state_obj) },
-    { MP_ROM_QSTR(MP_QSTR_add_transaction), MP_ROM_PTR(&roomba_add_transaction_obj) },
-    { MP_ROM_QSTR(MP_QSTR_view_transactions), MP_ROM_PTR(&roomba_view_transactions_obj) },
-    { MP_ROM_QSTR(MP_QSTR_exist_transaction), MP_ROM_PTR(&roomba_exist_transaction_obj) },
-    { MP_ROM_QSTR(MP_QSTR_is_transaction_allowed), MP_ROM_PTR(&roomba_is_transaction_allowed_obj) },
-
+     { MP_ROM_QSTR(MP_QSTR_view_states), MP_ROM_PTR(&roomba_view_states_obj) },
+     { MP_ROM_QSTR(MP_QSTR_view_events), MP_ROM_PTR(&roomba_view_events_obj) },
+     { MP_ROM_QSTR(MP_QSTR_sending_event), MP_ROM_PTR(&roomba_sending_event_obj) },
+     { MP_ROM_QSTR(MP_QSTR_view_current_state), MP_ROM_PTR(&roomba_view_current_state_obj) },
+   
 };
 
 
@@ -516,28 +344,13 @@ const mp_obj_type_t roomba_roomba_type = {
     .locals_dict = (mp_obj_dict_t*)&roomba_locals_dict,
 };
 
-//
-// Utility functions
-//
 
 
-//
-//
-// Module functions
-//
-//
-STATIC mp_obj_t roomba_add(const mp_obj_t o_in) {
-    //roomba_roomba_obj_t *class_instance = MP_OBJ_TO_PTR(o_in);
-    //return mp_obj_new_int(class_instance->a + class_instance->b);
-    return mp_const_none;
-}
 
-MP_DEFINE_CONST_FUN_OBJ_1(roomba_add_obj, roomba_add);
 
 STATIC const mp_map_elem_t roomba_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_roomba) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_roomba), (mp_obj_t)&roomba_roomba_type },	
-    { MP_OBJ_NEW_QSTR(MP_QSTR_add), (mp_obj_t)&roomba_add_obj },
 };
 
 STATIC MP_DEFINE_CONST_DICT (
@@ -552,10 +365,3 @@ const mp_obj_module_t roomba_user_cmodule = {
 
 MP_REGISTER_MODULE(MP_QSTR_roomba, roomba_user_cmodule, MODULE_ROOMBA_ENABLED);
 
-
-    //DEBUG
-    //mp_print_str(MP_PYTHON_PRINTER,(const char*)str_state );
-    //mp_printf(MP_PYTHON_PRINTER, "STRING=  %s\n", str_state);
-    //mp_printf(MP_PYTHON_PRINTER, " LENGTH= %d\n", str_state_len);
-    //-----   
- 
