@@ -10,8 +10,13 @@
 #include "py/mperrno.h"
 #include "ports/stm32/uart.h"
 #include "extmod/machine_i2c.h"
-#include "pin.h"
+#include "modmachine.h"
 #include "i2c.h"
+#include "pin.h"
+#include "irq.h"
+#include "bufhelper.h"
+#include "dma.h"
+
 
 #define NUM_AXIS (3)
 #define DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN   (0x77)
@@ -30,8 +35,11 @@
 
 typedef struct _accelerometer_lsm303dlhc_obj_t {
     mp_obj_base_t base;
-    pyb_i2c_obj_t*  i2c;
-    
+    //pyb_i2c_obj_t*  i2c;
+    //machine_i2c_obj_t* i2c;
+    //mp_machine_soft_i2c_obj_t*  i2c;
+    machine_hard_i2c_obj_t* i2c;
+
     union _accel_x{
      uint8_t low;
      uint8_t high;
@@ -64,21 +72,47 @@ STATIC void lsm303dlhc_print(const mp_print_t *print, mp_obj_t self_in, mp_print
 
 }
 
+//
+//from machine import Pin, SoftI2C
+//from micropython import const
+//import pyb
+//i2c = SoftI2C(scl=serial_clock,sda=serial_data, freq=400000)
+//
+//DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN = const(0x77)
+//CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE = const(0x08)
+//
+//i2c.writeto_mem(25,32,b'\x77')
+//i2c.writeto_mem(25,35,b'\x08')
+//
+//
+
 STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     //uint8_t data[2];
     //mp_arg_check_num(n_args, n_kw, 2, 2, true);
-    mp_arg_check_num(n_args, n_kw, 0, 0, true);
+    //mp_arg_check_num(n_args, n_kw, 0, 0, true);
+    mp_arg_check_num(n_args, n_kw, 1, 1, true);
     accelerometer_lsm303dlhc_obj_t *self = m_new_obj(accelerometer_lsm303dlhc_obj_t);
     self->base.type = &accelerometer_lsm303dlhc_type;
+    //machine_hard_i2c_type
+    //if (mp_obj_get_type(args[0]) == &mp_machine_soft_i2c_type) {
+    if (mp_obj_get_type(args[0]) == &mp_machine_hard_i2c_type) {
+         self->i2c=args[0];
+    }else{
+         mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
+    }
  
-    i2c_init(I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 400000, I2C_TIMEOUT_MS);
-    mp_hal_delay_ms(30);
+    self->i2c->machine_i2c_writeto_mem(25,32,0x77);
+    self->i2c->i2c_writeto_mem(25,35,0x08);
+
+    //i2c_init(I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 400000, I2C_TIMEOUT_MS);
+    //mp_hal_delay_ms(30);
     
     //data[0] = CTRL_REG1_A ;
     //data[1] = DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN ;
     //i2c_writeto(I2C1,ACCEL_ADDR , data, 2, true);
     //mp_hal_delay_ms(20);
-    machine_i2c_writeto_mem(ACCEL_ADDR,CTRL_REG1_A,DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN);
+    
+    
     //data[0] = CTRL_REG4_A ;
     //data[1] = CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE ;
     //i2c_writeto(I2C1, ACCEL_ADDR, data, 2, true);
@@ -91,6 +125,8 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
 
     return MP_OBJ_FROM_PTR(self);
 }
+
+
 
 //  ----------------Class methods ----------------
 //Class method 'add_state'

@@ -1,0 +1,461 @@
+in 
+lib/stm32lib/CMSIS/STM32F4xx/Include/stm32f411xe.h:} I2C_TypeDef;
+lib/tinyusb/hw/mcu/st/st_driver/CMSIS/Device/ST/STM32F4xx/Include/stm32f411xe.h:} I2C_TypeDef;
+
+in ports/stm32/machine_i2c.c
+con questi include
+#include "extmod/machine_i2c.h"
+#include "i2c.h"
+#include "modmachine.h"
+
+typedef struct _machine_hard_i2c_obj_t {
+    mp_obj_base_t base;
+    i2c_t *i2c;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+} machine_hard_i2c_obj_t;
+
+in "i2c.h" 
+typedef I2C_TypeDef i2c_t;
+
+typedef struct
+{
+  __IO uint32_t CR1;        /*!< I2C Control register 1,     Address offset: 0x00 */
+  __IO uint32_t CR2;        /*!< I2C Control register 2,     Address offset: 0x04 */
+  __IO uint32_t OAR1;       /*!< I2C Own address register 1, Address offset: 0x08 */
+  __IO uint32_t OAR2;       /*!< I2C Own address register 2, Address offset: 0x0C */
+  __IO uint32_t DR;         /*!< I2C Data register,          Address offset: 0x10 */
+  __IO uint32_t SR1;        /*!< I2C Status register 1,      Address offset: 0x14 */
+  __IO uint32_t SR2;        /*!< I2C Status register 2,      Address offset: 0x18 */
+  __IO uint32_t CCR;        /*!< I2C Clock control register, Address offset: 0x1C */
+  __IO uint32_t TRISE;      /*!< I2C TRISE register,         Address offset: 0x20 */
+  __IO uint32_t FLTR;       /*!< I2C FLTR register,          Address offset: 0x24 */
+} I2C_TypeDef;
+
+sempre in ports/stm32/machine.i2c.c
+
+typedef struct _machine_hard_i2c_obj_t {
+    mp_obj_base_t base;
+    i2c_t *i2c;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+} machine_hard_i2c_obj_t;
+
+STATIC const machine_hard_i2c_obj_t machine_hard_i2c_obj[MICROPY_HW_MAX_I2C] = {
+    #if defined(MICROPY_HW_I2C1_SCL)
+    [0] = {{&machine_hard_i2c_type}, I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA},
+    #endif
+    #if defined(MICROPY_HW_I2C2_SCL)
+    [1] = {{&machine_hard_i2c_type}, I2C2, MICROPY_HW_I2C2_SCL, MICROPY_HW_I2C2_SDA},
+    #endif
+    #if defined(MICROPY_HW_I2C3_SCL)
+    [2] = {{&machine_hard_i2c_type}, I2C3, MICROPY_HW_I2C3_SCL, MICROPY_HW_I2C3_SDA},
+    #endif
+    #if defined(MICROPY_HW_I2C4_SCL)
+    [3] = {{&machine_hard_i2c_type}, I2C4, MICROPY_HW_I2C4_SCL, MICROPY_HW_I2C4_SDA},
+    #endif
+};
+
+dove ports/stm32/mpconfigboard_common.h:
+
+// Configuration for STM32F4 series
+#elif defined(STM32F4)
+
+#define MP_HAL_UNIQUE_ID_ADDRESS (0x1fff7a10)
+#define PYB_EXTI_NUM_VECTORS (23)
+#define MICROPY_HW_MAX_I2C (3)
+#define MICROPY_HW_MAX_TIMER (14)
+#if defined(UART10)
+#define MICROPY_HW_MAX_UART (10)
+#elif defined(UART9)
+#define MICROPY_HW_MAX_UART (9)
+#elif defined(UART8)
+#define MICROPY_HW_MAX_UART (8)
+#elif defined(UART7)
+#define MICROPY_HW_MAX_UART (7)
+#else
+#define MICROPY_HW_MAX_UART (6)
+#endif
+
+dove I2C1 
+
+lib/stm32lib/CMSIS/STM32F4xx/Include/stm32f411xe.h:
+
+#define I2C1_BASE             (APB1PERIPH_BASE + 0x5400U)
+#define I2C1                ((I2C_TypeDef *) I2C1_BASE)
+
+
+ in ports/stm32/machine_i2c.c 
+
+const mp_obj_type_t machine_hard_i2c_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_I2C,
+    .print = machine_hard_i2c_print,
+    .make_new = machine_hard_i2c_make_new,
+    .protocol = &machine_hard_i2c_p,
+    .locals_dict = (mp_obj_dict_t *)&mp_machine_soft_i2c_locals_dict,
+
+
+
+invece in micropython/extmod/machine_i2c.c ci sono le funzioni esposte
+dalla classe 
+
+STATIC const mp_rom_map_elem_t machine_i2c_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&machine_i2c_init_obj) },
+    { MP_ROM_QSTR(MP_QSTR_scan), MP_ROM_PTR(&machine_i2c_scan_obj) },
+
+    // primitive I2C operations
+    { MP_ROM_QSTR(MP_QSTR_start), MP_ROM_PTR(&machine_i2c_start_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop), MP_ROM_PTR(&machine_i2c_stop_obj) },
+    { MP_ROM_QSTR(MP_QSTR_readinto), MP_ROM_PTR(&machine_i2c_readinto_obj) },
+    { MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&machine_i2c_write_obj) },
+
+    // standard bus operations
+    { MP_ROM_QSTR(MP_QSTR_readfrom), MP_ROM_PTR(&machine_i2c_readfrom_obj) },
+    { MP_ROM_QSTR(MP_QSTR_readfrom_into), MP_ROM_PTR(&machine_i2c_readfrom_into_obj) },
+    { MP_ROM_QSTR(MP_QSTR_writeto), MP_ROM_PTR(&machine_i2c_writeto_obj) },
+    { MP_ROM_QSTR(MP_QSTR_writevto), MP_ROM_PTR(&machine_i2c_writevto_obj) },
+
+    // memory operations
+    { MP_ROM_QSTR(MP_QSTR_readfrom_mem), MP_ROM_PTR(&machine_i2c_readfrom_mem_obj) },
+    { MP_ROM_QSTR(MP_QSTR_readfrom_mem_into), MP_ROM_PTR(&machine_i2c_readfrom_mem_into_obj) },
+    { MP_ROM_QSTR(MP_QSTR_writeto_mem), MP_ROM_PTR(&machine_i2c_writeto_mem_obj) },
+};
+
+
+
+
+
+
+
+Si vuole gestire un oggetto della classe "machine.SoftI2C"
+dalla ( in ) la classe dell'accelerometro 'lsm303dlhc'
+
+Il costruttore della classe "mp_machine_soft_i2c_make_new"
+è in "extmod/machine_i2c.c" 
+
+questo il costruttore
+
+STATIC mp_obj_t mp_machine_soft_i2c_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    // create new soft I2C object
+    machine_i2c_obj_t *self = m_new_obj(machine_i2c_obj_t);
+    self->base.type = &mp_machine_soft_i2c_type;
+    mp_map_t kw_args;
+    mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
+    machine_i2c_obj_init_helper(self, n_args, args, &kw_args);
+    return MP_OBJ_FROM_PTR(self);
+}
+
+Il tipo ""machine_i2c_obj_t"" è definito in extmod/machine_i2c.c
+
+typedef        char*                    Stringa 
+typedef        int                      Intero;
+           <nome_esistente>             <alias> 
+typedef  mp_machine_soft_i2c_obj_t   machine_i2c_obj_t;
+
+Il tipo ""mp_machine_soft_i2c_obj_t"" è definito in extmod/machine_i2c.h
+
+typedef struct _mp_machine_soft_i2c_obj_t {
+    mp_obj_base_t base;
+    uint32_t us_delay;
+    uint32_t us_timeout;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+} mp_machine_soft_i2c_obj_t;
+
+
+Percio'
+
+mp_machine_soft_i2c_obj_t == machine_i2c_obj_t
+
+-----in roomba.c-----------
+if (mp_obj_get_type(args[1]) == &pyb_uart_type) {
+         self->serial=args[1];
+    }else{
+         mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a serial line type.");
+    }
+
+-------------------------------------------
+-------------------------------------------
+
+ports/stm32/pyb_i2c.c
+
+ports/stm32/i2c.h:
+
+extern const mp_obj_type_t pyb_i2c_type;
+
+ports/stm32/modpyb.c:    { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&pyb_i2c_type) }
+
+ports/stm32/modpyb.c:    { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&pyb_i2c_type) },
+
+
+
+
+
+In ports/stm32/machine_i2c.c:     c'è il costruttore ""machine_hard_i2c_make_new""
+
+ il tipo è  "machine_hard_i2c_obj_t"
+
+const mp_obj_type_t machine_hard_i2c_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_I2C,
+    .print = machine_hard_i2c_print,
+    .make_new = machine_hard_i2c_make_new,
+    .protocol = &machine_hard_i2c_p,
+    .locals_dict = (mp_obj_dict_t *)&mp_machine_soft_i2c_locals_dict,
+};
+
+le funzioni esposte sono in 
+STATIC const mp_rom_map_elem_t machine_i2c_locals_dict_table[] 
+del file extmod/machine_i2c.c
+
+
+
+
+    // memory operations
+    { MP_ROM_QSTR(MP_QSTR_readfrom_mem), MP_ROM_PTR(&machine_i2c_readfrom_mem_obj) },
+    { MP_ROM_QSTR(MP_QSTR_readfrom_mem_into), MP_ROM_PTR(&machine_i2c_readfrom_mem_into_obj) },
+    { MP_ROM_QSTR(MP_QSTR_writeto_mem), MP_ROM_PTR(&machine_i2c_writeto_mem_obj) },
+
+
+Abbiamo in extmod/machine_i2c.c
+
+typedef mp_machine_soft_i2c_obj_t machine_i2c_obj_t;
+
+e in  ports/stm32/machine_i2c.c
+
+typedef mp_machine_soft_i2c_obj_t machine_hard_i2c_obj_t;
+
+poi sempre in ports/stm32/machine_i2c.c viene definito questo array
+
+STATIC const machine_hard_i2c_obj_t machine_hard_i2c_obj[MICROPY_HW_MAX_I2C] = {
+    #if defined(MICROPY_HW_I2C1_SCL)
+    [0] = {{&machine_hard_i2c_type}, I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA},
+    #endif
+    #if defined(MICROPY_HW_I2C2_SCL)
+    [1] = {{&machine_hard_i2c_type}, I2C2, MICROPY_HW_I2C2_SCL, MICROPY_HW_I2C2_SDA},
+    #endif
+    #if defined(MICROPY_HW_I2C3_SCL)
+    [2] = {{&machine_hard_i2c_type}, I2C3, MICROPY_HW_I2C3_SCL, MICROPY_HW_I2C3_SDA},
+    #endif
+    #if defined(MICROPY_HW_I2C4_SCL)
+    [3] = {{&machine_hard_i2c_type}, I2C4, MICROPY_HW_I2C4_SCL, MICROPY_HW_I2C4_SDA},
+    #endif
+};
+
+ed il tipo 
+
+const mp_obj_type_t machine_hard_i2c_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_I2C,
+    .print = machine_hard_i2c_print,
+    .make_new = machine_hard_i2c_make_new,
+    .protocol = &machine_hard_i2c_p,
+    .locals_dict = (mp_obj_dict_t *)&mp_machine_soft_i2c_locals_dict,
+};
+
+
+---------------------------------------------------------------------
+
+		extmod/machine_i2c.[h,c]
+
+---------------------------------------------------------------------
+
+typedef struct _accelerometer_lsm303dlhc_obj_t {
+    mp_obj_base_t base;
+    ...
+    ...
+} accelerometer_lsm303dlhc_obj_t;
+
+typedef struct _<name_module>_<name_class>_obj_t {
+    mp_obj_base_t base;
+    ...
+    ...
+} <name_module>_<name_class>_obj_t;
+
+
+
+
+
+------in extmod/machine_i2c.h------------------
+ 
+typedef struct _mp_machine_soft_i2c_obj_t {
+    mp_obj_base_t base;
+    uint32_t us_delay;
+    uint32_t us_timeout;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+} mp_machine_soft_i2c_obj_t;
+
+extern const mp_obj_type_t mp_machine_soft_i2c_type;
+extern const mp_obj_dict_t mp_machine_soft_i2c_locals_dict;
+
+
+(a) mp_machine_soft_i2c_type
+
+	(a.1) extmod/machine_i2c.c
+
+	(a.2) extmod/machine_i2c.h
+
+	(a.3) portd/nrf/modules/machine/modmachine.c
+
+	(a.4) ports/esp8266/modmachine.c
+
+	(a.5) ports/stm32/modmachine.c
+
+	(a.6) ports/esp32/modmachine.c
+
+
+(b) mp_machine_soft_i2c_locals_dict
+
+	(b.1) ports/zephyr/machine_i2c.c
+
+	(b.2) ports/esp32/machine_i2c.c
+
+	(b.3) ports/stm32/machine_i2c.c
+
+	(b.4) extmod/machine_i2c.c
+
+	(b.5) ports/nrf/modules/machine/i2c.c
+
+
+
+in extmod/machine_i2c.[c,h]
+ 
+  mp_machine_soft_i2c_obj_t
+
+in ports/stm32/machine_i2c.c 
+
+  typedef mp_machine_soft_i2c_obj_t machine_hard_i2c_obj_t;
+ 
+
+
+-----function machine_i2c_writeto_mem----------------
+
+extmod/machine_i2c.c
+
+
+-----function machine_SoftI2C----------------
+
+extmod/machine_i2c.h
+
+
+---------------------------------------------------------------------
+Both hardware and software I2C implementations exist via the 
+
+           machine.I2C ( deprecated ) 
+
+and 
+
+	   machine.SoftI2C 
+
+classes. Hardware I2C uses underlying hardware support of the system 
+to perform the reads/writes and is usually efficient and fast but may have 
+restrictions on which pins can be used. 
+Software I2C is implemented by bit-banging and can be used on any pin 
+but is not as efficient. These classes have the same methods available 
+and differ primarily in the way they are constructed.
+
+
+---------------------SoftI2C------------------------------------------
+
+extmod/machine_i2c.c:    
+
+   mp_printf(print, "SoftI2C(scl=" MP_HAL_PIN_FMT ", sda=" MP_HAL_PIN_FMT ", freq=%u)",
+
+ports/stm32/modmachine.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_SoftI2C),    MP_ROM_PTR(&mp_machine_soft_i2c_type) },
+
+
+---------------------machine_soft_i2c-----------------------
+
+ports/stm32/machine_i2c.c:
+    typedef mp_machine_soft_i2c_obj_t machine_hard_i2c_obj_t;
+
+ports/stm32/machine_i2c.c:
+
+    #define machine_hard_i2c_transfer mp_machine_soft_i2c_transfer
+
+ports/stm32/machine_i2c.c:    
+
+      .locals_dict = (mp_obj_dict_t *)&mp_machine_soft_i2c_locals_dict,
+
+ports/esp32/modmachine.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_SoftI2C), MP_ROM_PTR(&mp_machine_soft_i2c_type) },
+
+ports/esp32/machine_i2c.c:    
+
+   .locals_dict = (mp_obj_dict_t *)&mp_machine_soft_i2c_locals_dict,
+
+ports/stm32/modmachine.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_I2C),      MP_ROM_PTR(&mp_machine_soft_i2c_type) },
+
+ports/stm32/modmachine.c:   
+
+ { MP_ROM_QSTR(MP_QSTR_SoftI2C),      MP_ROM_PTR(&mp_machine_soft_i2c_type) },
+
+
+extmod/machine_i2c.c:    
+
+    self->base.type = &mp_machine_soft_i2c_type;
+
+extmod/machine_i2c.c:
+
+   const mp_obj_type_t mp_machine_soft_i2c_type = {
+
+extmod/machine_i2c.h:            
+
+  return mp_machine_soft_i2c_type.make_new(&mp_machine_soft_i2c_type, n_args, n_kw, all_args); \
+
+extmod/machine_i2c.h:
+
+  extern const mp_obj_type_t mp_machine_soft_i2c_type;
+
+ports/stm32/modmachine.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_I2C),        MP_ROM_PTR(&mp_machine_soft_i2c_type) },
+
+ports/stm32/modmachine.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_SoftI2C),   MP_ROM_PTR(&mp_machine_soft_i2c_type) },
+
+
+extmod/machine_i2c.c:
+
+STATIC mp_obj_t machine_i2c_readfrom_mem(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+
+extmod/machine_i2c.c:
+
+MP_DEFINE_CONST_FUN_OBJ_KW(machine_i2c_readfrom_mem_obj, 1, machine_i2c_readfrom_mem);
+
+extmod/machine_i2c.c:
+
+STATIC mp_obj_t machine_i2c_readfrom_mem_into(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+
+extmod/machine_i2c.c:
+
+MP_DEFINE_CONST_FUN_OBJ_KW(machine_i2c_readfrom_mem_into_obj, 1, machine_i2c_readfrom_mem_into);
+
+extmod/machine_i2c.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_readfrom_mem), MP_ROM_PTR(&machine_i2c_readfrom_mem_obj) },
+
+extmod/machine_i2c.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_readfrom_mem_into), MP_ROM_PTR(&machine_i2c_readfrom_mem_into_obj) },
+
+extmod/machine_i2c.c:
+
+STATIC mp_obj_t machine_i2c_writeto_mem(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+
+extmod/machine_i2c.c:
+
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_i2c_writeto_mem_obj, 1, machine_i2c_writeto_mem);
+
+extmod/machine_i2c.c:    
+
+{ MP_ROM_QSTR(MP_QSTR_writeto_mem), MP_ROM_PTR(&machine_i2c_writeto_mem_obj) },
+
