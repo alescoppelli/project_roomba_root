@@ -1,0 +1,115 @@
+----------------------------------------------------------------
+CREARE UN OGGETTO PIN 
+
+mp_obj_t args[] = {
+  MP_OBJ_NEW_SMALL_INT(gpio_num),
+  other Pin arguments
+};
+my_pin = machine_pin_type.make_new(&machine_pin_type, n_args, 0, &args);
+
+------------------------------------------------------------------
+CREARE/GESTIRE DIZIONARI 
+https://forum.micropython.org/viewtopic.php?t=8141
+
+size_t mp_obj_dict_len(mp_obj_t self_in);
+mp_obj_t mp_obj_dict_get(mp_obj_t self_in, mp_obj_t index);
+mp_obj_t mp_obj_dict_store(mp_obj_t self_in, mp_obj_t key, mp_obj_t value);
+mp_obj_t mp_obj_dict_delete(mp_obj_t self_in, mp_obj_t key);
+mp_map_elem_t *mp_map_lookup(mp_map_t *map, mp_obj_t index, mp_map_lookup_kind_t lookup_kind);
+
+------------------------------------------------------------------
+RELATIONSHIP BETWEEN MICROPYTHON METHODS CALL AND C CODE
+
+https://github.com/MikeTeachman/MicroPython_ESP32_psRAM_LoBo_I2S/blob/master/MicroPython_BUILD/components/micropython/esp32/argument_examples.c
+
+------------------------------------------------------------------
+INTERFACCIARE UNITA INERZIALE MPU9250
+
+https://github.com/micropython-IMU/micropython-mpu9x50 
+
+https://learn.sparkfun.com/tutorials/mpu-9250-hookup-guide/all
+
+-------------------------------------------------------------------
+BEST PRACTICES FOR USING MICROpYTHON HARDWARE API ( machine MODULE ) 
+
+https://github.com/micropython/micropython/tree/master/examples/hwapi
+
+--------------------------------------------------------------------
+INTERFACCIARE SENSORE DI TEMPERATURA E UMIDITA
+
+https://github.com/mcauser/micropython-dht12
+
+https://github.com/mcauser/micropython-am2320
+
+https://forum.micropython.org/viewtopic.php?f=14&t=9039&p=51021&hilit=i2c#p51021
+
+---------------------------------------------------------------------
+MIGLIORARE LE PERFORMANCE DI MICROPYTHON
+
+http://docs.micropython.org/en/latest/reference/speed_python.html
+
+----------------------------------------------------------------------
+PACCHETTIZZARE E SPACCHETTIZZARE STRUTTURE 
+
+https://docs.micropython.org/en/latest/library/ustruct.html
+
+https://docs.python.org/3/library/struct.html
+
+------------------------------------------------------------------------
+SPI
+
+https://www.ti.com/lit/an/slva689/slva689.pdf
+
+https://habr.com/en/post/448702/
+
+https://github.com/AlekseyFedorovich/ADXL345_spi
+
+-------------------------------------------------------------------------
+SENSORI AD ULTRASUONI
+
+https://www.arduino.cc/en/Tutorial/LibraryExamples/SFRRangerReader
+
+--------------------------------------------------------------------------
+LISTA SITI INTERESSANTI 
+
+https://github.com/mcauser/awesome-micropython
+
+---------------------------------------------------------------------------
+LIBRERIE DINAMICHE IN MICROPYTHON
+
+https://forum.micropython.org/viewtopic.php?f=3&t=6884
+
+----------------------------------------------------------------------------
+NUMPY IN MICROPYTHON
+
+https://github.com/v923z/micropython-ulab
+
+-----------------------------------------------------------------------------
+MICROPYTHON FUNCTIOONS AND METHODS IN C CODE
+
+https://forum.micropython.org/viewtopic.php?f=3&t=5578
+
+------------------------------------------------------------------------------
+GESTIRE OGGETTI TIPO FILE
+
+
+https://github.com/dhylands/micropython/commit/faeb8e11361740964e276b48a9b41ce1e0f0c21b#diff-69528cf7a1b680885089529ad7dd75caa165373a79f9d44cf32663215baebabf
+
+-------------------------------------------------------------------------------
+LIBRI TUTOIAL SULLA VRTUAL MACHINE 
+
+http://craftinginterpreters.com/contents.html
+http://www.aosabook.org/en/500L/a-python-interpreter-written-in-python.html
+
+--------------------------------------------------------------------------------
+UASYNCIO TUTORIAL
+
+https://github.com/peterhinch/micropython-async/blob/master/v3/docs/TUTORIAL.md
+
+---------------------------------------------------------------------------------
+
+
+
+
+
+
