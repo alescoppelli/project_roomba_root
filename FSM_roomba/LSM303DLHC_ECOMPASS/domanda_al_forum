@@ -59,6 +59,63 @@ How to link, from my class, these two functions ?
 (c) peraphs with a "extern" directive in my class file 
 
 
+----------------------------------------------------------------------
+SECONDA DOMANDA	SECONDA DOMANDA	SECONDA DOMANDA	SECONDA DOMANDA
+----------------------------------------------------------------------
+
+
+Question to the veteran :-)
+
+I have a STM32F411 board and when I try these
+commands all ok:
+
+-------
+from machine import I2C
+
+i2c = I2C(1)
+i2c.scan()  -->Ok [25,30][i.e. address of accelerometer, address of magnetometer]
+
+
+i2c.writeto_mem(25,32,b'\x77')
+i2c.writeto_mem(25,35,b'\x08')
+
+i2c.readfrom_mem(25,40,1)
+i2c.readfrom_mem(25,41,1)
+-------
+
+
+Now I would like to write ( in C ) my class  for a my project that use an I2C object
+i.e. I would like write something like this ( in Micropython interpreter):
+
+from machine import I2C
+import MYCLASS_WROTE_IN_C
+
+i2c = I2C(1)
+a = MYCLASS_WROTE_IN_C(i2c)
+
+Question:
+
+Come si referenzia un oggetto di una  classe già esistente 
+( come machine.I2C ) 
+
+In the constructor of my class I try to verify the correct type
+
+...
+if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
+         self->i2c=args[0];
+    }else{
+         mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
+    }
+...
+
+
+error: unknown type name 'machine_hard_i2c_obj_t'
+
+
+Vorrei ottenere la stessa cosa discussa in questo thread 
+https://forum.micropython.org/viewtopic.php?f=6&t=2919&sid=b61a0596856eaeeadee2a9b1612dd530&start=10
+ma usando la mia classe in C
+
 
 
 

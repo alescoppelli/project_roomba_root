@@ -5,4 +5,5 @@ import lsm303dlhc
 if __name__ == "__main__":
 
 	a = lsm303dlhc.lsm303dlhc()
-	while(
+	while(True):
+		print(a.read_axes() ) 
