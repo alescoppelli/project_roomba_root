@@ -1,0 +1,170 @@
+=====================================================================
+NOTE SULLA PORTA SERIALE USATA IN ROOMBA
+=====================================================================
+
+(1) In GIT_CLONE/HACKING_MICROPYTHON/micropython
+    nella struttura/oggetto "roomba" c'è il campo
+
+     pyb_uart_obj_t* serial;
+
+    e verifica che sia di tipo "pyb_uart_type"
+
+
+	$ grep -r "pyb_uart_obj_t" * | grep typedef
+
+In ports/stm32/uart.h
+
+	typedef struct _pyb_uart_obj_t {
+		...
+		...
+		...
+	} pyb_uart_obj_t;
+
+(2) Nel programma (roomba.c) vengono chiamate queste
+    due funzioni  |||( NOTARE 'self->serial' )|||
+
+        if( uart_tx_wait( self->serial, TIMEOUT_TX_MILLISECONDS) ){
+                    ...
+                    ...        
+                    uart_tx_data(self->serial, &data, 1, &errcode);   
+                    ...                  
+        }
+
+
+	La dichiarazione di queste due funzioni è in "ports/stm32/uart.h"
+
+ 	bool uart_tx_wait(pyb_uart_obj_t *self, uint32_t timeout);
+ 	size_t uart_tx_data(pyb_uart_obj_t *self, const void *src_in, 
+                            size_t num_chars, int *errcode);
+
+La loro definizione è in "ports/stm32/uart.c" 
+
+
+
+
+// src - a pointer to the data to send (16-bit aligned for 9-bit chars)
+// num_chars - number of characters to send (9-bit chars count for 2 bytes from src)
+// *errcode - returns 0 for success, MP_Exxx on error
+// returns the number of characters sent (valid even if there was an error)
+size_t uart_tx_data(pyb_uart_obj_t *self, const void *src_in, size_t num_chars, int *errcode) {
+	...
+	...
+}
+
+// Waits at most timeout milliseconds for TX register to become empty.
+// Returns true if can write, false if can't.
+bool uart_tx_wait(pyb_uart_obj_t *self, uint32_t timeout) {
+	...
+	...
+}
+
+
+(4) In "ports/stm32/machine_uart.c" viene dichiarata e definita la classe
+
+	Vengono esposti questi metodi: 
+
+STATIC const mp_rom_map_elem_t pyb_uart_locals_dict_table[] = {
+    // instance methods
+
+    { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&pyb_uart_init_obj) },
+    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&pyb_uart_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR_any), MP_ROM_PTR(&pyb_uart_any_obj) },
+
+    /// \method read([nbytes])
+    { MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&mp_stream_read_obj) },
+    /// \method readline()
+    { MP_ROM_QSTR(MP_QSTR_readline), MP_ROM_PTR(&mp_stream_unbuffered_readline_obj)},
+    /// \method readinto(buf[, nbytes])
+    { MP_ROM_QSTR(MP_QSTR_readinto), MP_ROM_PTR(&mp_stream_readinto_obj) },
+    /// \method write(buf)
+    { MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&mp_stream_write_obj) },
+    { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&pyb_uart_irq_obj) },
+
+    { MP_ROM_QSTR(MP_QSTR_writechar), MP_ROM_PTR(&pyb_uart_writechar_obj) },
+    { MP_ROM_QSTR(MP_QSTR_readchar), MP_ROM_PTR(&pyb_uart_readchar_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sendbreak), MP_ROM_PTR(&pyb_uart_sendbreak_obj) },
+
+    // class constants
+    { MP_ROM_QSTR(MP_QSTR_RTS), MP_ROM_INT(UART_HWCONTROL_RTS) },
+    { MP_ROM_QSTR(MP_QSTR_CTS), MP_ROM_INT(UART_HWCONTROL_CTS) },
+
+    // IRQ flags
+    { MP_ROM_QSTR(MP_QSTR_IRQ_RXIDLE), MP_ROM_INT(UART_FLAG_IDLE) },
+};
+
+
+----------------------------------------------------------------
+RISULTATO: il programma usa funzioni dichiarate e definite in
+
+		uart.h e uart.c
+ 
+           non quelle esposte dalla classe
+
+----------------------------------------------------------------
+
+
+
+
+(3) In GIT_CLONE/HACKING_MICROPYTHON/micropython
+    nella struttura/oggetto "lsm303dlhc c'è il campo
+
+      machine_soft_i2c_obj_t* i2c;
+
+
+In  extmod/machine_i2c.h
+
+ 	typedef struct _mp_machine_soft_i2c_obj_t {
+   		mp_obj_base_t base;
+    		uint32_t us_delay;
+    		uint32_t us_timeout;
+    		mp_hal_pin_obj_t scl;
+    		mp_hal_pin_obj_t sda;
+	} mp_machine_soft_i2c_obj_t;
+
+e sono dichiarate solo queste funzioni
+
+extern const mp_obj_type_t mp_machine_soft_i2c_type;
+extern const mp_obj_dict_t mp_machine_soft_i2c_locals_dict;
+
+int mp_machine_i2c_transfer_adaptor(mp_obj_base_t *self, 
+                                    uint16_t addr, 
+                                    size_t n, 
+                                    mp_machine_i2c_buf_t *bufs, 
+                                    unsigned int flags);
+
+int mp_machine_soft_i2c_transfer(mp_obj_base_t *self, 
+                                 uint16_t addr, 
+                                 size_t n, 
+                                 mp_machine_i2c_buf_t *bufs, 
+                                 unsigned int flags);
+
+
+Nel file  extmod/machine_i2c.c è creato l'oggetto
+
+STATIC mp_obj_t mp_machine_soft_i2c_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    // create new soft I2C object
+    machine_i2c_obj_t *self = m_new_obj(machine_i2c_obj_t);
+    self->base.type = &mp_machine_soft_i2c_type;
+    ...
+    ...
+    ...
+    return MP_OBJ_FROM_PTR(self);
+}
+
+ 
+Sempre in extmod/machine_i2c.c sono definite 
+
+
+STATIC mp_obj_t machine_i2c_writeto_mem(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args);
+STATIC mp_obj_t machine_i2c_readfrom_mem(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args);
+
+e associate alla classe
+
+STATIC const mp_rom_map_elem_t machine_i2c_locals_dict_table[] = {
+	...
+	...
+    // memory operations
+    { MP_ROM_QSTR(MP_QSTR_readfrom_mem), MP_ROM_PTR(&machine_i2c_readfrom_mem_obj) },
+    { MP_ROM_QSTR(MP_QSTR_readfrom_mem_into), MP_ROM_PTR(&machine_i2c_readfrom_mem_into_obj) },
+    { MP_ROM_QSTR(MP_QSTR_writeto_mem), MP_ROM_PTR(&machine_i2c_writeto_mem_obj) },
+};

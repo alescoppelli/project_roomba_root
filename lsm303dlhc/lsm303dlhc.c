@@ -18,6 +18,8 @@
 #include "dma.h"
 
 
+
+
 #define NUM_AXIS (3)
 #define DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN   (0x77)
 #define CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE   (0x08)
@@ -35,7 +37,7 @@
 //extern struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
 //extern typedef struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
 //typedef struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
-
+extern  mp_obj_t pyb_i2c_mem_write(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args);
 
 typedef struct _accelerometer_lsm303dlhc_obj_t {
     mp_obj_base_t base;
@@ -43,7 +45,10 @@ typedef struct _accelerometer_lsm303dlhc_obj_t {
     //machine_i2c_obj_t* i2c;
     //mp_machine_soft_i2c_obj_t*  i2c;
     //struct _machine_hard_i2c_obj_t* i2c;
-    struct machine_hard_i2c_obj_t* i2c;
+    //struct machine_hard_i2c_obj_t* i2c;
+    //machine_soft_i2c_obj_t* i2c;
+    //machine_hard_i2c_obj_t* i2c;
+    pyb_i2c_obj_t* i2c; 
 
     union _accel_x{
      uint8_t low;
@@ -98,15 +103,16 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
     mp_arg_check_num(n_args, n_kw, 1, 1, true);
     accelerometer_lsm303dlhc_obj_t *self = m_new_obj(accelerometer_lsm303dlhc_obj_t);
     self->base.type = &accelerometer_lsm303dlhc_type;
-    //machine_hard_i2c_type
+    
     //if (mp_obj_get_type(args[0]) == &mp_machine_soft_i2c_type) {
-    if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
+    //if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
+    if (mp_obj_get_type(args[0]) == &pyb_i2c_type) {
          self->i2c=args[0];
     }else{
          mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
     }
  
-    self->i2c->machine_i2c_writeto_mem(25,32,0x77);
+     pyb_i2c_mem_write(self->i2c,0x77,25,32);
     //self->i2c->machine_i2c_writeto_mem(25,35,0x08);
 
     //i2c_init(I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 400000, I2C_TIMEOUT_MS);
