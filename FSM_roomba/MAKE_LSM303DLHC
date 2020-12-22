@@ -1,0 +1,9 @@
+#!/bin/sh
+
+#make BOARD=STM32F411DISC clean 
+
+make   BOARD=STM32F411DISC USER_C_MODULES=../../../project_roomba CFLAGS_EXTRA=-DMODULE_LSM303DLHC_ENABLED=1  all deploy-stlink
+
+#make   BOARD=STM32F411DISC USER_C_MODULES=../../../project_roomba CFLAGS_EXTRA=-DMODULE_LSM303DLHC_ENABLED=1  all                            
+
+
