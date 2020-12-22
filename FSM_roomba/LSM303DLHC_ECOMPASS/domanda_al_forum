@@ -1,0 +1,65 @@
+Hi to all.
+I'm trying to development a simple lsm303dhlc accelerometer driver 
+using the I2C class already present in Micropython
+( I have a STM32F411 Discovery board and the lsm303dhlc accelerometer is 
+hard linked to the PB6(scl) and PB9(sda) board pin).
+
+Scenario ( about  use a I2C class in my new accelerometer class):
+-----------------------------------------------------------------
+
+I wrote my new ( simple ) accelerometer class like:
+
+typedef struct _accelerometer_lsm303dlhc_obj_t {
+    mp_obj_base_t base;
+
+    struct machine_hard_i2c_obj_t* i2c;
+
+    union _accel_x{
+     uint8_t low;
+     uint8_t high;
+     int16_t value;
+    }accel_x;
+         
+} accelerometer_lsm303dlhc_obj_t; 
+
+I would like to use the already present I2C class in Micropython 
+and so I prepare the field "struct machine_hard_i2c_obj_t* i2c" 
+in the accelerometer struct. 
+
+When I try to use the method "machine_i2c_writeto_mem()" there are compilation problems
+( I tried different solutions but I haven't  understood where I'm wrong ).  
+
+
+I saw that in  "ports/stm32/machine_i2c.c" there is the definition of 
+I2C class ( hard and soft ). 
+Then the class's methods   are in 'mp_machine_soft_i2c_locals_dict' 
+( line 276 in  ports/stm32/machine_i2c.c).
+The array/table  'mp_machine_soft_i2c_locals_dict_table[]'  is in   
+ extmod/machine_i2c.c ( line 635-655).
+
+
+
+
+Question ( about how to link to use a external class's method ):
+---------------------------------------------------------------
+
+I would ( or better I have to )  use  the I2C methods 
+"machine_i2c_readfrom_mem" and "machine_i2c_writeto_mem".
+
+I would like to write sentence like these:
+
+  self->i2c->machine_i2c_writeto_mem(bla_bla);
+  or
+  self->i2c->machine_i2c_readfrom_mem(bla_bla);
+
+How to link, from my class, these two functions ?
+
+(a) #include "extmod/machine_i2c.h" doesn't work
+(b) maybe something in my custom new project class 'micropython.mk'
+(c) peraphs with a "extern" directive in my class file 
+
+
+
+
+
+
