@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <string.h>
+
+#include "py/runtime.h"
+#include "py/mphal.h"
+#include "py/mperrno.h"
+#include "extmod/machine_i2c.h"
+#include "i2c.h"
+#include "modmachine.h"
+
+//Definito in ports/stm32/mpconfigboard_common.h
+//Linee 267-273
+// Enable hardware I2C if there are any peripherals defined
+//#if defined(MICROPY_HW_I2C1_SCL) || defined(MICROPY_HW_I2C2_SCL) \
+//    || defined(MICROPY_HW_I2C3_SCL) || defined(MICROPY_HW_I2C4_SCL)
+//#define MICROPY_HW_ENABLE_HW_I2C (1)
+//#else
+//#define MICROPY_HW_ENABLE_HW_I2C (0)
+//#endif
+//
+#if MICROPY_HW_ENABLE_HW_I2C
+
+	#define I2C_POLL_DEFAULT_TIMEOUT_US (50000) // 50ms
+
+
+
+
+
+
+
+#else
+
+// No hardware I2C driver for this MCU so use the software implementation
+
+
+
+	#define machine_hard_i2c_transfer mp_machine_soft_i2c_transfer
+
+#endif
+
+
+#endif // MICROPY_HW_ENABLE_HW_I2C
+
+
+///
+///
+///
+///
+///4.2.3 Defined
+
+///The special operator defined is used in ‘#if’ and ‘#elif’ expressions 
+///to test whether a certain name is defined as a macro. defined name and 
+///defined (name) are both expressions whose value is 1 if name is defined 
+///as a macro at the current point in the program, and 0 otherwise. 
+///Thus, #if defined MACRO is precisely equivalent to #ifdef MACRO.
+///
+///defined is useful when you wish to test more than one macro for existence at once. For example,
+///
+///#if defined (__vax__) || defined (__ns16000__)
+///
+///would succeed if either of the names __vax__ or __ns16000__ is defined as a macro.
+///
+///Conditionals written like this:
+///
+///#if defined BUFSIZE && BUFSIZE >= 1024
+///
+///can generally be simplified to just 
+///#if BUFSIZE >= 1024, 
+///since if BUFSIZE is not defined, it will be interpreted as having the value zero.
+///
+///If the defined operator appears as a result of a macro expansion, 
+///the C standard says the behavior is undefined. GNU cpp treats it as a genuine 
+///defined operator and evaluates it normally. It will warn wherever your code 
+///uses this feature if you use the command-line option -Wpedantic, since other compilers 
+///may handle it differently. The warning is also enabled by -Wextra, 
+///and can also be enabled individually with -Wexpansion-to-defined. 
+
