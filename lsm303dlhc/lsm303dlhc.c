@@ -32,13 +32,18 @@
 #define OUT_Z_L_A    (0x2C)
 #define OUT_Z_H_A    (0x2D)
 
+//extern struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
+//extern typedef struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
+//typedef struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
+
 
 typedef struct _accelerometer_lsm303dlhc_obj_t {
     mp_obj_base_t base;
     //pyb_i2c_obj_t*  i2c;
     //machine_i2c_obj_t* i2c;
     //mp_machine_soft_i2c_obj_t*  i2c;
-    machine_hard_i2c_obj_t* i2c;
+    //struct _machine_hard_i2c_obj_t* i2c;
+    struct machine_hard_i2c_obj_t* i2c;
 
     union _accel_x{
      uint8_t low;
@@ -95,14 +100,14 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
     self->base.type = &accelerometer_lsm303dlhc_type;
     //machine_hard_i2c_type
     //if (mp_obj_get_type(args[0]) == &mp_machine_soft_i2c_type) {
-    if (mp_obj_get_type(args[0]) == &mp_machine_hard_i2c_type) {
+    if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
          self->i2c=args[0];
     }else{
          mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
     }
  
     self->i2c->machine_i2c_writeto_mem(25,32,0x77);
-    self->i2c->i2c_writeto_mem(25,35,0x08);
+    //self->i2c->machine_i2c_writeto_mem(25,35,0x08);
 
     //i2c_init(I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 400000, I2C_TIMEOUT_MS);
     //mp_hal_delay_ms(30);
