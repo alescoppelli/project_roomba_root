@@ -1,0 +1,30 @@
+================================================================
+COME GESTIRE LA COMPOSIZIONE ( OGGETTI DENTRO LA CLASSE ) 
+================================================================
+
+(1) https://forum.micropython.org/viewtopic.php?f=3&t=4576&p=26463&hilit=inheritance+C#p26463
+
+
+(2) https://github.com/micropython/micropython/blob/4d409b8e3276c2e40191ada9726780a0dcc776ba/ports/stm32/timer.c#L115-L132
+
+
+(3) Video Youtube su come fare driver in micropython 
+
+https://www.youtube.com/watch?v=0HQ-zPbuWg4
+
+
+(4) Drivers e Librerie 
+
+https://github.com/micropython/micropython/tree/master/drivers
+
+https://github.com/micropython-Chinese-Community/mpy-lib
+
+(5) CANNOLI 
+
+ https://github.com/joncatanio/cannoli
+
+Cannoli is a compiler for a subset of Python 3.6.5 
+
+(6) 
+
+

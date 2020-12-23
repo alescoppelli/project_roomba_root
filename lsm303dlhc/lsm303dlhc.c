@@ -34,11 +34,14 @@
 #define OUT_Z_L_A    (0x2C)
 #define OUT_Z_H_A    (0x2D)
 
-//extern struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
-//extern typedef struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
-//typedef struct _machine_hard_i2c_obj_t machine_hard_i2c_obj_t;
-//extern  mp_obj_t pyb_i2c_mem_write(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args);
-extern struct  _machine_hard_i2c_obj_t  machine_hard_i2c_obj_t;
+//From ports/stm32/machine_i2c.c
+typedef struct _machine_hard_i2c_obj_t {
+    mp_obj_base_t base;
+    i2c_t *i2c;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+} machine_hard_i2c_obj_t;
+
 
 
 /******************************************************************************/
@@ -52,8 +55,9 @@ typedef struct _accelerometer_lsm303dlhc_obj_t {
     //struct _machine_hard_i2c_obj_t* i2c;
     //struct machine_hard_i2c_obj_t* i2c;
     //machine_soft_i2c_obj_t* i2c;
-    machine_hard_i2c_obj_t* i2c;
-    //pyb_i2c_obj_t* i2c; 
+    struct _machine_hard_i2c_obj_t* i2c;
+    //struct machine_hard_i2c_obj_t* i2c;
+   //pyb_i2c_obj_t* i2c; 
 
     union _accel_x{
      uint8_t low;
@@ -79,29 +83,28 @@ const mp_obj_type_t accelerometer_lsm303dlhc_type;
 
 
 
-
-
 STATIC void lsm303dlhc_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
     accelerometer_lsm303dlhc_obj_t *self = MP_OBJ_TO_PTR(self_in);
  
-    //mp_print_str(print, "Accelerometer lsm303dlhc ");
-    //mp_printf(print, " X= %d, Y= %d, Z=%d  ", self->accel_x.value,  self->accel_y.value, self->accel_z.value);
+    mp_print_str(print, "Accelerometer lsm303dlhc ");
+    mp_printf(print, " X= %d, Y= %d, Z=%d  ", self->accel_x.value,  self->accel_y.value, self->accel_z.value);
 
 }
 
+//////DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN = const(0x77)
+//////CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE = const(0x08)
 //
-//from machine import Pin, SoftI2C
-//from micropython import const
-//import pyb
-//i2c = SoftI2C(scl=serial_clock,sda=serial_data, freq=400000)
+//from machine import I2C
 //
-//DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN = const(0x77)
-//CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE = const(0x08)
+//i2c = I2C(1) 
+//i2c.scan()
 //
 //i2c.writeto_mem(25,32,b'\x77')
 //i2c.writeto_mem(25,35,b'\x08')
 //
+//i2c.readfrom_mem(25,40,1)
+//i2c.readfrom_mem(25,41,1)
 //
 
 STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
@@ -121,7 +124,10 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
     }
  
     // pyb_i2c_mem_write(self->i2c,0x77,25,32);
+   
     //self->i2c->machine_i2c_writeto_mem(25,35,0x08);
+   
+    self->i2c->writeto_mem(25,35,0x08);
 
     //i2c_init(I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 400000, I2C_TIMEOUT_MS);
     //mp_hal_delay_ms(30);

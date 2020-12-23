@@ -64,10 +64,10 @@ SECONDA DOMANDA	SECONDA DOMANDA	SECONDA DOMANDA	SECONDA DOMANDA
 ----------------------------------------------------------------------
 
 
-Question to the veteran :-)
 
-I have a STM32F411 board and when I try these
-commands all ok:
+
+I have a STM32F411 board and when I try to use 
+the I2C bus master is all ok:
 
 -------
 from machine import I2C
@@ -84,22 +84,41 @@ i2c.readfrom_mem(25,41,1)
 -------
 
 
-Now I would like to write ( in C ) my class  for a my project that use an I2C object
+Now I would like to write ( in C ) a class  for  my project that use an I2C object
 i.e. I would like write something like this ( in Micropython interpreter):
 
 from machine import I2C
-import MYCLASS_WROTE_IN_C
+from MYMODULE_WROTE_IN_C import MYCLASS_WROTE_IN_C
 
 i2c = I2C(1)
 a = MYCLASS_WROTE_IN_C(i2c)
 
+and now the object 'a' should be use the object 'i2c' 
+(composition technique ) 
+
+
 Question:
 
-Come si referenzia un oggetto di una  classe già esistente 
-( come machine.I2C ) 
 
-In the constructor of my class I try to verify the correct type
+How I can use/run/invoke the class methods ( 'writeto_mem' e 'readfrom_mem' )
+from a method in  MYCLASS_WROTE_IN_C ? 
 
+
+This is what I did.
+
+The definition of my class is:
+
+typedef struct _myclass_obj_t {
+    mp_obj_base_t base;
+    struct _machine_hard_i2c_obj_t* i2c;
+    ...
+    ...         
+} myclass_obj_t;
+
+and in the constructor of my class I  verify the correct type
+
+
+...
 ...
 if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
          self->i2c=args[0];
@@ -107,9 +126,35 @@ if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
          mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
     }
 ...
+...
+
+and the compilation is ok.
+
+But when I write something like
+
+...
+self->i2c->machine_i2c_writeto_mem(25,35,0x08);
+...
+I obtain the  compilation error:
+
+error: dereferencing pointer to incomplete type 'struct _machine_hard_i2c_obj_t'
 
 
-error: unknown type name 'machine_hard_i2c_obj_t'
+If I write in the file  "myclass_wrote_in_c.c" 
+
+//From ports/stm32/machine_i2c.c
+typedef struct _machine_hard_i2c_obj_t {
+    mp_obj_base_t base;
+    i2c_t *i2c;
+    mp_hal_pin_obj_t scl;
+    mp_hal_pin_obj_t sda;
+} machine_hard_i2c_obj_t; 
+
+I obtained the correct error:
+
+error: 'struct _machine_hard_i2c_obj_t' has no member named 'writeto_mem'
+
+What do I do to invoke a class methods that belongs to object 'i2c' ?  
 
 
 Vorrei ottenere la stessa cosa discussa in questo thread 
