@@ -34,46 +34,44 @@
 #define OUT_Z_L_A    (0x2C)
 #define OUT_Z_H_A    (0x2D)
 
-//From ports/stm32/machine_i2c.c
-typedef struct _machine_hard_i2c_obj_t {
-    mp_obj_base_t base;
-    i2c_t *i2c;
-    mp_hal_pin_obj_t scl;
-    mp_hal_pin_obj_t sda;
-} machine_hard_i2c_obj_t;
 
 
+//typedef struct _pyb_i2c_obj_t {
+//    mp_obj_base_t base;
+//    I2C_HandleTypeDef *i2c;
+//    const dma_descr_t *tx_dma_descr;
+//    const dma_descr_t *rx_dma_descr;
+//    bool *use_dma;
+//} pyb_i2c_obj_t;
 
 /******************************************************************************/
 /* MicroPython bindings                                                      */
 
 typedef struct _accelerometer_lsm303dlhc_obj_t {
     mp_obj_base_t base;
-    //pyb_i2c_obj_t*  i2c;
-    //machine_i2c_obj_t* i2c;
-    //mp_machine_soft_i2c_obj_t*  i2c;
-    //struct _machine_hard_i2c_obj_t* i2c;
-    //struct machine_hard_i2c_obj_t* i2c;
-    //machine_soft_i2c_obj_t* i2c;
-    struct _machine_hard_i2c_obj_t* i2c;
-    //struct machine_hard_i2c_obj_t* i2c;
-   //pyb_i2c_obj_t* i2c; 
+    pyb_i2c_obj_t* i2c;
 
     union _accel_x{
-     uint8_t low;
-     uint8_t high;
+     struct {
+        uint8_t low;
+        uint8_t high;
+     };   
      int16_t value;
     }accel_x;
 
     union _accel_y{
-     uint8_t low;
-     uint8_t high;
+     struct{
+        uint8_t low;
+        uint8_t high;
+     };   
      int16_t value;
     }accel_y;
     
     union _accel_z{
-     uint8_t low;
-     uint8_t high;
+    struct{
+       uint8_t low;
+       uint8_t high;
+    };   
      int16_t value;
     }accel_z;
          
@@ -82,6 +80,28 @@ typedef struct _accelerometer_lsm303dlhc_obj_t {
 const mp_obj_type_t accelerometer_lsm303dlhc_type;
 
 
+/// \function i2c_write(data, data_len, addr, memaddr, timeout=5000, addr_size=8)
+///
+/// Write to the memory of an I2C device:
+///
+///   - `data`      can be an integer or a buffer to write from
+///   - `data_len`  data length
+///   - `addr`      is the I2C device address
+///   - `mem_addr`  is the memory location within the I2C device
+///   - `timeout`   is the timeout in milliseconds to wait for the write (default 1000)
+///   - `addr_size` selects width of memaddr: 8 or 16 bits (default 8 )
+///
+/// Returns 0.
+/// This is only valid in master mode.
+//int i2c_write_register(uint8_t* data, uint8_t data_len, uint8_t addr, uint8_t mem_addr, uint16_t timeout, uint8_t mem_addr_size ) {
+//
+//    addr = addr << 1;
+//    I2C_HandleTypeDef*  =  ;
+//    HAL_I2C_Mem_Write(I2C1, addr, mem_addr, mem_addr_size, data, data_len, timeout);
+//
+//
+//  return 0;
+//}
 
 STATIC void lsm303dlhc_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
@@ -92,58 +112,21 @@ STATIC void lsm303dlhc_print(const mp_print_t *print, mp_obj_t self_in, mp_print
 
 }
 
-//////DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN = const(0x77)
-//////CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE = const(0x08)
-//
-//from machine import I2C
-//
-//i2c = I2C(1) 
-//i2c.scan()
-//
-//i2c.writeto_mem(25,32,b'\x77')
-//i2c.writeto_mem(25,35,b'\x08')
-//
-//i2c.readfrom_mem(25,40,1)
-//i2c.readfrom_mem(25,41,1)
-//
 
 STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+
     //uint8_t data[2];
-    //mp_arg_check_num(n_args, n_kw, 2, 2, true);
-    //mp_arg_check_num(n_args, n_kw, 0, 0, true);
     mp_arg_check_num(n_args, n_kw, 1, 1, true);
     accelerometer_lsm303dlhc_obj_t *self = m_new_obj(accelerometer_lsm303dlhc_obj_t);
     self->base.type = &accelerometer_lsm303dlhc_type;
     
-    //if (mp_obj_get_type(args[0]) == &mp_machine_soft_i2c_type) {
-    if (mp_obj_get_type(args[0]) == &machine_hard_i2c_type) {
-    //if (mp_obj_get_type(args[0]) == &pyb_i2c_type) {
+    
+    if (mp_obj_get_type(args[0]) == &pyb_i2c_type) {
          self->i2c=args[0];
     }else{
          mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
     }
  
-    // pyb_i2c_mem_write(self->i2c,0x77,25,32);
-   
-    //self->i2c->machine_i2c_writeto_mem(25,35,0x08);
-   
-    self->i2c->writeto_mem(25,35,0x08);
-
-    //i2c_init(I2C1, MICROPY_HW_I2C1_SCL, MICROPY_HW_I2C1_SDA, 400000, I2C_TIMEOUT_MS);
-    //mp_hal_delay_ms(30);
-    
-    //data[0] = CTRL_REG1_A ;
-    //data[1] = DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN ;
-    //i2c_writeto(I2C1,ACCEL_ADDR , data, 2, true);
-    //mp_printf(MP_PYTHON_PRINTER, "Indirizzo I2C=%d, REGISTRO=%d, CONFIG_BYTE=%d  ", ACCEL_ADDR,  CTRL_REG1_A, DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN);
-    //mp_hal_delay_ms(30);
-    
-    
-    //data[0] = CTRL_REG4_A ;
-    //data[1] = CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE ;
-    //i2c_writeto(I2C1, ACCEL_ADDR, data, 2, true);
-    //mp_printf(MP_PYTHON_PRINTER, "Indirizzo I2C=%d, REGISTRO=%d   ", ACCEL_ADDR,  CTRL_REG4_A);
-    //mp_hal_delay_ms(30);
 
     self->accel_x.value=0;
     self->accel_y.value=0;
@@ -153,60 +136,199 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
     return MP_OBJ_FROM_PTR(self);
 }
 
-//
-//
-//
-//
-//
-//STATIC mp_obj_t read_axis(int axis) {
-//    uint8_t data[1] = { axis };
-//    i2c_writeto(I2C1, ACCEL_ADDR, data, 1, false);
-//    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-//    return mp_obj_new_int(ACCEL_AXIS_SIGNED_VALUE(data[0]));
-//}
-//
-/// \method x()
-/// Get the x-axis value.
-//STATIC mp_obj_t pyb_accel_x(mp_obj_t self_in) {
-//    return read_axis(ACCEL_REG_X);
-//}
-//STATIC MP_DEFINE_CONST_FUN_OBJ_1(pyb_accel_x_obj, pyb_accel_x);
 
 //  ----------------Class methods ----------------
-//Class method 'add_state'
+//Class method 'write_register'
+///STATIC mp_obj_t pyb_i2c_mem_write(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+///Original function in pyb_i2c.c
+/// \method  write_register(self_in, data_t, data_len_t, i2c_addr_t, i2c_reg_t, timeout_t=5000, mem_size_t=8)
+///
+/// Write to the memory of an I2C device:
+///
+///   - `self_in`     object 
+///   - `data_t`      can be an integer or a buffer to write from
+//////  - `data_len_t`  data length
+///   - `i2c_addr_t`  is the I2C device address
+///   - `i2c_reg_t`   is the memory location within the I2C device
+//////   - `timeout_t`   is the timeout in milliseconds to wait for the write (default 1000)
+//////   - `mem_size_t`  selects width of memaddr: 8 or 16 bits (default 8 )
+///
+/// Returns 0.
+/// This is only valid in master mode.
+//STATIC mp_obj_t lsm303dlhc_write_register(mp_obj_t self_in, mp_obj_t data_t, mp_obj_t data_len_t, mp_obj_t i2c_addr_t, mp_obj_t i2c_reg_t, mp_obj_t timeout_t, mp_obj_t mem_size_t ) {
+STATIC mp_obj_t lsm303dlhc_write_register(size_t n_args, const mp_obj_t* args ) {
+    accelerometer_lsm303dlhc_obj_t *self=NULL;
+    //uint8_t* data=NULL;
+    uint8_t data[2];
+    uint8_t  data_len=1;
+    uint8_t  i2c_addr=0;
+    uint8_t  i2c_reg=0;
+    uint16_t timeout=1000;
+    uint8_t  mem_size=8;
+    
+    //uint8_t data[2] ;
+    if( n_args == 0 ){
+      mp_print_str(MP_PYTHON_PRINTER, " No arguments supplied \n");
+    }else if(n_args == 4){
+       self        = MP_OBJ_TO_PTR(args[0]);
+       data[0]     = mp_obj_get_int(args[1]);
+       //data_len = mp_obj_get_int(args[2]);
+       i2c_addr = mp_obj_get_int(args[2]);
+       i2c_reg  = mp_obj_get_int(args[3]);
+       timeout  = 1000;
+       mem_size = 8;
+     }else{
+      mp_print_str(MP_PYTHON_PRINTER, " Wrong number of arguments!\n");
+    }
+    //printf("WRITE: MASTER I2C address before =%d\n", i2c_addr );
+    i2c_addr = i2c_addr << 1;
+    //printf("WRITE: MASTER I2C address after =%d\n", i2c_addr );
+    
+    
+    //I2C_HandleTypeDef* 
+    //    HAL_I2C_Mem_Write(I2C1, addr, mem_addr, mem_addr_size, data, data_len, timeout);
+    HAL_StatusTypeDef status;
+    status=HAL_I2C_Mem_Write(self->i2c->i2c, i2c_addr, i2c_reg, mem_size, data, data_len, timeout);
+    if (status != HAL_OK) {
+       mp_print_str(MP_PYTHON_PRINTER, "Warning: error writing accelerometer  ");  
+    }
+    ///INIT DEBUG
+    printf("Wrote on I2C->REG %d->%d the value %d\n",mp_obj_get_int(args[2]),mp_obj_get_int(args[3]), mp_obj_get_int(args[1])   );
+    ///END DEBUG
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(lsm303dlhc_write_register_obj,0,4, lsm303dlhc_write_register);
+
+
+/// \method read_register(data, data_len, addr, memaddr)
+///
+/// Read to the memory of an I2C device:
+///
+///   
+///   - `data_len`  data length
+///   - `i2c_addr`      is the I2C device address
+///   - `i2c_reg`  is the memory location within the I2C device
+
+///
+/// Returns 0.
+/// This is only valid in master mode.
+STATIC mp_obj_t lsm303dlhc_read_register(size_t n_args, const mp_obj_t *args) {
+    accelerometer_lsm303dlhc_obj_t *self=NULL;
+    uint8_t data_len=0;
+    uint8_t i2c_addr = 0;
+    uint8_t i2c_reg = 0;
+    uint16_t   timeout  = 1000;
+    uint8_t  mem_size = 8;
+
+    if( n_args == 0 ){
+      mp_print_str(MP_PYTHON_PRINTER, " No arguments supplied \n");
+    }else if(n_args == 4){
+       self     = MP_OBJ_TO_PTR(args[0]);       
+       data_len = mp_obj_get_int(args[1]);
+       i2c_addr = mp_obj_get_int(args[2]);
+       i2c_reg  = mp_obj_get_int(args[3]);
+
+     }else{
+      mp_print_str(MP_PYTHON_PRINTER, " Wrong number of arguments!\n");
+    }
+    //printf("READ: MASTER I2C address before =%d\n", i2c_addr );
+    i2c_addr = i2c_addr << 1;
+    //printf("READ: MASTER I2C address after  =%d\n", i2c_addr );
+    
+    
+    HAL_StatusTypeDef status;
+    uint8_t data[data_len];
+    status=HAL_I2C_Mem_Read(self->i2c->i2c, i2c_addr, i2c_reg, mem_size, data, data_len, timeout);
+    if (status != HAL_OK) {
+       mp_print_str(MP_PYTHON_PRINTER, "Warning: error reading accelerometer  ");  
+    }
+    if(data_len == 2){
+       self->accel_x.low = data[0];
+       self->accel_x.high = data[1];
+       //printf("Read on DATA_X_LOW=%d  DATA_X_HIGH=%d \n",mp_obj_new_int(data[0]),mp_obj_new_int(data[1])   );
+       printf("Read on X_LOW=%d  X_HIGH=%d \n",self->accel_x.low,self->accel_x.high   );
+       printf("Read on X_VALUE=%d\n",self->accel_x.value  );
+       return mp_obj_new_int(self->accel_x.value ); 
+    }else if(data_len == 4){
+       self->accel_x.low = data[0];
+       self->accel_x.high = data[1];
+       self->accel_y.low = data[2];
+       self->accel_y.high = data[3];
+       printf("Read on X_LOW=%d  X_HIGH=%d  Y_LOW=%d  Y_HIGH=%d \n",data[0],data[1],data[2],data[3]  );
+       mp_obj_t tuple[2];
+       tuple[0] = mp_obj_new_int(self->accel_x.value);
+       tuple[1] = mp_obj_new_int(self->accel_y.value);
+       return mp_obj_new_tuple(2, tuple);
+    }else if(data_len == 6){
+       self->accel_x.low = data[0];
+       self->accel_x.high = data[1];
+       self->accel_y.low = data[2];
+       self->accel_y.high = data[3];  
+       self->accel_y.low = data[4];
+       self->accel_y.high = data[5];
+       mp_obj_t tuple[3];
+       tuple[0] = mp_obj_new_int(self->accel_x.value);
+       tuple[1] = mp_obj_new_int(self->accel_y.value);
+       tuple[2] = mp_obj_new_int(self->accel_z.value);
+       return mp_obj_new_tuple(3, tuple);  
+    
+    }else{
+      mp_print_str(MP_PYTHON_PRINTER, "You can read only 2 or 4 or 6 samples \n");
+    }
+    
+    ///INIT DEBUG
+    printf("Read on I2C->REG %d -> %d \n",mp_obj_get_int(args[2]),mp_obj_get_int(args[3])   );
+    ///END DEBUG
+    
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(lsm303dlhc_read_register_obj,0,4, lsm303dlhc_read_register);
+
+
+//Class method 'set'
+//STATIC mp_obj_t lsm303dlhc_set(mp_obj_t self_in ) {
+//    uint8_t data[2] ;
+//
+//    accelerometer_lsm303dlhc_obj_t *self = MP_OBJ_TO_PTR(self_in);
+//    
+//    data[0]=DATA_RATE_400_HZ_NORMAL_MODE_X_EN_Y_EN_Z_EN;
+//    lsm303dlhc_write_register(self,data,1,25,32);
+//    
+//    data[0]=CONTINUOS_UPDATE_LITTLE_ENDIAN_2_G_HIGH_RESOLUTION_SPI_4_WIRE ;
+//    lsm303dlhc_write_register(self,data,1,25,32);   
+//
+//    return mp_const_none;
+//}
+//MP_DEFINE_CONST_FUN_OBJ_1(lsm303dlhc_set_obj, lsm303dlhc_set);
+//  --------------------------------
+//Class method 'read_axes'
 STATIC mp_obj_t lsm303dlhc_read_axes(mp_obj_t self_in ) {
-    uint8_t data[2] ;
+    //uint8_t data[2] ;
+
     accelerometer_lsm303dlhc_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
-    data[1] = OUT_X_L_A;
-    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-    self->accel_x.low = data[0];
- 
-    data[1] = OUT_X_H_A;
-    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-    self->accel_x.high = data[0];
+    //data[0] = OUT_X_L_A ;
+    //i2c_writeto(I2C1, ACCEL_ADDR, data, 1, false);
+    //i2c_readfrom(I2C1,ACCEL_ADDR,data, 2, true );
+    //self->accel_x.low = data[0];
+    //self->accel_x.high = data[1]; 
 
-    mp_printf(MP_PYTHON_PRINTER, "X_L=%d, X_H=%d, X=%d  ", self->accel_x.low,  self->accel_x.high, self->accel_x.value);
+    
+    //data[0] = OUT_Y_L_A ;
+    //i2c_writeto(I2C1, ACCEL_ADDR, data, 1, false);
+    //i2c_readfrom(I2C1,ACCEL_ADDR,data, 2, true );
+    //self->accel_y.low = data[0];
+    //self->accel_y.high = data[1];
 
-    data[1] = OUT_Y_L_A;
-    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-    self->accel_y.low = data[0];
- 
-    data[1] = OUT_Y_H_A;
-    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-    self->accel_y.high = data[0];
 
-    mp_printf(MP_PYTHON_PRINTER, "Y_L=%d, Y_H=%d, Y=%d  ", self->accel_y.low,  self->accel_y.high, self->accel_y.value);
+    //data[0] = OUT_Z_L_A ;
+    //i2c_writeto(I2C1, ACCEL_ADDR, data, 1, false);
+    //i2c_readfrom(I2C1,ACCEL_ADDR,data, 2, true );
+    //self->accel_z.low = data[0];
+    //self->accel_z.high = data[1]; 
 
-    data[1] = OUT_Z_L_A;
-    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-    self->accel_z.low = data[0];
- 
-    data[1] = OUT_Z_H_A;
-    i2c_readfrom(I2C1, ACCEL_ADDR, data, 1, true);
-    self->accel_z.high = data[0];
 
-    mp_printf(MP_PYTHON_PRINTER, "Z_L=%d, Z_H=%d, Z=%d  ", self->accel_z.low,  self->accel_z.high, self->accel_z.value);
+    //mp_printf(MP_PYTHON_PRINTER, "Z_L=%d, Z_H=%d, Z=%d  ", self->accel_z.low,  self->accel_z.high, self->accel_z.value);
 
     mp_obj_t tuple[NUM_AXIS];
     tuple[0] = mp_obj_new_int(self->accel_x.value);
@@ -220,7 +342,8 @@ MP_DEFINE_CONST_FUN_OBJ_1(lsm303dlhc_read_axes_obj, lsm303dlhc_read_axes);
 
 STATIC const mp_rom_map_elem_t lsm303dlhc_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_read_axes), MP_ROM_PTR(&lsm303dlhc_read_axes_obj) },
-    //{ MP_ROM_QSTR(MP_QSTR_mysum), MP_ROM_PTR(&roomba_sum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_write_register), MP_ROM_PTR(&lsm303dlhc_write_register_obj) },
+    { MP_ROM_QSTR(MP_QSTR_read_register), MP_ROM_PTR(&lsm303dlhc_read_register_obj) },
     //{ MP_ROM_QSTR(MP_QSTR_add_state), MP_ROM_PTR(&roomba_add_state_obj) },
     //{ MP_ROM_QSTR(MP_QSTR_view_states), MP_ROM_PTR(&roomba_view_states_obj) },
     //{ MP_ROM_QSTR(MP_QSTR_exist_state), MP_ROM_PTR(&roomba_exist_state_obj) },
