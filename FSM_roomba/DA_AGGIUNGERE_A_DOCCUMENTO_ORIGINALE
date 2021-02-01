@@ -151,6 +151,18 @@ void uart_set_rxbuf(pyb_uart_obj_t *self, size_t len, void *buf) {
 
 
 ------------------------------------------------------------------------
+Libreria ULAB che imita Numpy/Scipy
+https://github.com/v923z/micropython-ulab
+------------------------------------------------------------------------
+
+----Schede su cui al momento può girare la libreria ULAB---
+https://gitlab.com/rcolistete/micropython-firmwares
+
+https://gitlab.com/rcolistete/micropython-firmwares/-/tree
+/master/Pyboard/v1.12/2020-07-26
+
+
+------------------------------------------------------------------------
 			COMANDI UTILI
 ------------------------------------------------------------------------
 
@@ -159,6 +171,10 @@ $ dmesg -wH
 $ conda install -c anaconda pyserial
 
 
+---vedere se per la scheda usata supporta la singola o doppia precisione
+--https://forum.micropython.org/viewtopic.php?t=6481---
 
+$ cd <dove_e_MicroPython>/ports/smt32
+$ grep -r "MICROPY_FLOAT_IMPL" *
 
 

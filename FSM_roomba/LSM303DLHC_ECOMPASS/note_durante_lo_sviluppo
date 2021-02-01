@@ -25,6 +25,79 @@ https://github.com/micropython-Chinese-Community/mpy-lib
 
 Cannoli is a compiler for a subset of Python 3.6.5 
 
-(6) 
+(6) HAL_I2C_Mem_Read e HAL_I2C_Mem_Write
+ 
+HAL_I2C_Mem_Read 
+   performs a I2C write operation to select the memory address to read 
+   and then reads N bytes 
+   (start, I2C address + Write, Memory address, 
+    repeated start, I2C address + Read, N bytes, stop) 
 
+HAL_I2C_Mem_Write 
+    performs a I2C write operation to select the memory address to read and 
+    then writes N bytes 
+    (start, I2C address + Write, Memory address, 
+     repeated start, I2C address + Write, N bytes, stop) 
+
+
+
+(7) https://os.mbed.com/
+
+
+Mbed OS
+
+Arm Mbed OS is a free, open-source embedded operating system 
+designed specifically for the "things" in the Internet of Things.
+
+It includes all the features you need to develop a connected product 
+based on an Arm Cortex-M microcontroller, including security, 
+connectivity, an RTOS, and drivers for sensors and I/O devices.
+
+
+(8) https://forums.parallax.com/discussion/146523/scaling-accelerometer-output
+
+Ok, I think I have figured it out. The LSM303DLHC uses a 12 bit ADC on board, 
+and stores the result in the upper 12 bits of the 16 bit output word. 
+So, the value 1392(decimal) needs to be right shifted by 4, 
+resulting in 87(decimal). 87*0.012 => 1.044g, which is exactly what I'm looking for.
+
+I'm basing this on the sample Arduino code from 
+Pololu: https://github.com/pololu/LSM303/blob/master/LSM303/LSM303.cpp
+
+byte xla = Wire.read();
+  byte xha = Wire.read();
+  byte yla = Wire.read();
+  byte yha = Wire.read();
+  byte zla = Wire.read();
+  byte zha = Wire.read();
+
+  // combine high and low bytes, then shift right to discard lowest 
+  // 4 bits (which are meaningless)
+  // GCC performs an arithmetic right shift for signed negative numbers, 
+  // but this code will not work
+  // if you port it to a compiler that does a logical right shift instead.
+  a.x = ((int16_t)(xha << 8 | xla)) >> 4;
+  a.y = ((int16_t)(yha << 8 | yla)) >> 4;
+  a.z = ((int16_t)(zha << 8 | zla)) >> 4;
+
+
+I couldn't find any documentation on this feature, but it seems to work.
+
+re High Resolution Mode: the CTRL_REG4_A (23h) register has a bit that enables 
+high resolution mode. What does that mean? I have no idea: 
+it's not documented anywhere in the datasheet. 
+But, I think I'd prefer high resolution, so I enabled it.
+
+And, my guess is that the +-16g mode does not use the full 12 bit 
+range of values. This is from the linear acceleration sensitivity table:
+
+FS bit set to 00           1 mg/LSB
+FS bit set to 01           2
+FS bit set to 10           4
+FS bit set to 11           12
+
+
+For each of the first three levels, the +-g count doubles and the 
+resolution halves. For the +-16 level, the +-g range doubles but the 
+resolution is less than 1/2 the previous. In any case, just an interesting note. 
 
