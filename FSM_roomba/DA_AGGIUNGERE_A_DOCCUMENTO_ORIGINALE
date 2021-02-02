@@ -178,3 +178,23 @@ $ cd <dove_e_MicroPython>/ports/smt32
 $ grep -r "MICROPY_FLOAT_IMPL" *
 
 
+
+--------------------------------------------------------------------------
+COMPILARE PROGRAMMI CON FUNZIONI MATEMATICHE
+--------------------------------------------------------------------------
+https://forum.micropython.org/viewtopic.php?t=6481
+
+(a) Modificato il file 
+
+  "micropython/ports/stm32/boards/SMTF411DISC/mpconfigboard.mk"
+
+aggiungendo come prima linea 
+
+MICROPY_FLOAT_IMPL = double
+
+(nel file <file>.c è presente la linea 
+
+#include <math.h>
+
+
+

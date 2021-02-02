@@ -49,51 +49,6 @@
 #define ZERO_BAND_HIGH ((int16_t) 350 )
 
 
-static double filter_taps[LOW_FILTER_TAP_NUM] = {
-  0.020132210722515607,
-  0.014337588088026872,
-  -0.06042518986827016,
-  -0.11688176581198412,
-  0.015390548525687591,
-  0.30600043556088063,
-  0.464289723357815,
-  0.30600043556088063,
-  0.015390548525687591,
-  -0.11688176581198412,
-  -0.06042518986827016,
-  0.014337588088026872,
-  0.020132210722515607
-};
-
-typedef struct {
-  double history[LOW_FILTER_TAP_NUM];
-  unsigned int last_index;
-} low_filter;
-
-
-void low_filter_init_helper(low_filter* f) {
-  uint16_t  i;
-  for(i = 0; i < LOW_FILTER_TAP_NUM; ++i){
-    f->history[i] = 0;
-  }
-  f->last_index = 0;
-}
-
-void low_filter_put_helper(low_filter* f, double input) {
-  f->history[f->last_index++] = input;
-  if(f->last_index == LOW_FILTER_TAP_NUM)
-    f->last_index = 0;
-}
-
-double low_filter_get_helper(low_filter* f) {
-  double   acc = 0;
-  uint16_t index = f->last_index, i;
-  for(i = 0; i < LOW_FILTER_TAP_NUM; ++i) {
-    index = index != 0 ? index-1 : LOW_FILTER_TAP_NUM-1;
-    acc += f->history[index] * filter_taps[i];
-  };
-  return acc;
-}
 
 
 bool write_register_helper(I2C_HandleTypeDef* hi2c, uint16_t accel_i2c_slave_reg, uint8_t data ){
@@ -188,9 +143,30 @@ bool convert_to_m_s_s_helper(I2C_HandleTypeDef* hi2c, uint16_t accel_i2c_slave_r
  return ret;
 }
 
+void guess_dt_helper(I2C_HandleTypeDef* hi2c, uint32_t repetitions ){
+  double val;
+  
 
+  for(uint32_t i=0; i<repetitions; i++){
+    convert_to_m_s_s_helper(hi2c, OUT_X_A, &val);
+    convert_to_m_s_s_helper(hi2c, OUT_Y_A, &val);
+    convert_to_m_s_s_helper(hi2c, OUT_Z_A, &val);
+  } 
+}
 
-//float freq = mp_obj_get_float_to_f(freq_in);
+//Likely you're compiling for single-precision float, 
+//in which case you should be using "sqrtf" not "sqrt". 
+//Sqrt will only be available when compiling for double-precision. 
+//Both are provided by MicroPython's math library (lib/libm and lib/libm_double).
+//
+//In general though, use MICROPY_FLOAT_C_FUN which will use the 
+//correct version automatically based on single/double precision.
+//
+//e.g. MICROPY_FLOAT_C_FUN(sqrt)(variance)
+//
+//
+//
+//
 bool statistic_helper(I2C_HandleTypeDef* hi2c,double* mx,double* my,double* mz,double* vx,double* vy,double* vz){
    bool ret = true;
    uint16_t HOW_MANY_SAMPLES=3000;
@@ -199,8 +175,9 @@ bool statistic_helper(I2C_HandleTypeDef* hi2c,double* mx,double* my,double* mz,d
    double sum_x,sum_y,sum_z;
    double mean_x,mean_y,mean_z;
    double diff_x_mean_sq,diff_y_mean_sq,diff_z_mean_sq;
-   double variance_x,variance_y,variance_z;
+   //double variance_x,variance_y,variance_z;
    double temp;
+   double standard_deviation_x,standard_deviation_y,standard_deviation_z;
    
     sum_x = sum_y = sum_z = 0.0;
     diff_x_mean_sq = diff_y_mean_sq = diff_z_mean_sq = 0.0;
@@ -259,19 +236,27 @@ bool statistic_helper(I2C_HandleTypeDef* hi2c,double* mx,double* my,double* mz,d
 
     }	
 
-    //standard_deviation_x = sqrt(diff_x_mean_sq/HOW_MANY_SAMPLES);
-    //standard_deviation_y = sqrt(diff_y_mean_sq/HOW_MANY_SAMPLES);
-    //standard_deviation_z = sqrt(diff_z_mean_sq/HOW_MANY_SAMPLES);
+
+     
+     standard_deviation_x = MICROPY_FLOAT_C_FUN(sqrt)(diff_x_mean_sq/HOW_MANY_SAMPLES);
+     standard_deviation_y = MICROPY_FLOAT_C_FUN(sqrt)(diff_y_mean_sq/HOW_MANY_SAMPLES);
+     standard_deviation_z = MICROPY_FLOAT_C_FUN(sqrt)(diff_z_mean_sq/HOW_MANY_SAMPLES);
 
 
-    variance_x = (diff_x_mean_sq/HOW_MANY_SAMPLES);
-    variance_y = (diff_y_mean_sq/HOW_MANY_SAMPLES);
-    variance_z = (diff_z_mean_sq/HOW_MANY_SAMPLES);
+
+    //variance_x = (diff_x_mean_sq/HOW_MANY_SAMPLES);
+    //variance_y = (diff_y_mean_sq/HOW_MANY_SAMPLES);
+    //variance_z = (diff_z_mean_sq/HOW_MANY_SAMPLES);
 
 
-    *vx = variance_x;
-    *vy = variance_y;
-    *vz = variance_z;
+     //*vx = variance_x; 
+    //*vy = variance_y;
+    //*vz = variance_z;
+
+     *vx = standard_deviation_x;
+     *vy = standard_deviation_y;
+     *vz = standard_deviation_z;
+
 
 //START DEBUG
 //mp_printf(MP_PYTHON_PRINTER, "X=%f, Y=%f, Z=%f  \n", mean_x,mean_y,mean_z);
@@ -288,9 +273,6 @@ return ret;
 typedef struct _accelerometer_lsm303dlhc_obj_t {
     mp_obj_base_t base;
     pyb_i2c_obj_t* i2c;
-    low_filter x_axes_low_pass;
-    low_filter y_axes_low_pass;
-    low_filter z_axes_low_pass;
 
 } accelerometer_lsm303dlhc_obj_t;
 
@@ -321,10 +303,6 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
          mp_print_str(MP_PYTHON_PRINTER, "The argumet is not a I2C type.");
     }
  
-    low_filter_init_helper(&self->x_axes_low_pass);
-    low_filter_init_helper(&self->y_axes_low_pass);
-    low_filter_init_helper(&self->z_axes_low_pass);
- 
 
     return MP_OBJ_FROM_PTR(self);
 }
@@ -332,8 +310,6 @@ STATIC mp_obj_t lsm303dlhc_make_new(const mp_obj_type_t *type, size_t n_args, si
 //
 //  ----------------Class methods ----------------
 //
-
-
 //Class method 'setup'
 STATIC mp_obj_t lsm303dlhc_setup(mp_obj_t self_in ) {
     bool ret=false;
@@ -359,6 +335,18 @@ STATIC mp_obj_t lsm303dlhc_setup(mp_obj_t self_in ) {
 MP_DEFINE_CONST_FUN_OBJ_1(lsm303dlhc_setup_obj, lsm303dlhc_setup);
 //mp_printf(MP_PYTHON_PRINTER, "Z_L=%d, Z_H=%d, Z=%d  ", self->accel_z.low,  self->accel_z.high, self->accel_z.value);
 
+
+//  --------------------------------
+//Class method 'guess_dt'
+STATIC mp_obj_t lsm303dlhc_guess_dt(mp_obj_t self_in, mp_obj_t arg1  ) {
+    accelerometer_lsm303dlhc_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_int_t repetitions = mp_obj_get_int(arg1);
+
+    guess_dt_helper(self->i2c->i2c, repetitions );
+    return mp_const_none;
+}
+
+MP_DEFINE_CONST_FUN_OBJ_2(lsm303dlhc_guess_dt_obj, lsm303dlhc_guess_dt);
 
 //  --------------------------------
 //Class method 'read_axes'
@@ -431,11 +419,6 @@ STATIC mp_obj_t lsm303dlhc_read_accel_axes(mp_obj_t self_in ) {
       return mp_const_false;
     }
 
-    //Add a low filter 
-    low_filter_put_helper(&self->x_axes_low_pass, ax);
-    low_filter_put_helper(&self->y_axes_low_pass, ay);
-    low_filter_put_helper(&self->z_axes_low_pass, az);
-
 
     mp_obj_t tuple[NUM_AXIS];
     tuple[0] = mp_obj_new_float((float)ax);
@@ -502,6 +485,7 @@ STATIC const mp_rom_map_elem_t lsm303dlhc_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_accel),     MP_ROM_PTR(&lsm303dlhc_read_accel_axes_obj) },
     { MP_ROM_QSTR(MP_QSTR_setup),     MP_ROM_PTR(&lsm303dlhc_setup_obj) },
     { MP_ROM_QSTR(MP_QSTR_statistic), MP_ROM_PTR(&lsm303dlhc_statistic_obj) },
+    { MP_ROM_QSTR(MP_QSTR_guess_dt), MP_ROM_PTR(&lsm303dlhc_guess_dt_obj) },
 };
 
 

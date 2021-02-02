@@ -1,0 +1,48 @@
+------------------------------------------------------
+How to use mathematical functions 
+------------------------------------------------------
+
+
+Hi to all.
+
+I'm developing a simple lsm303dhlc accelerometer driver 
+like user module  so I'm writing the C version that 
+which will be added and exposed to the Python interpreter.
+( I have a STM32F411 Discovery board and the lsm303dhlc 
+accelerometer is hard linked to the PB6(scl) and PB9(sda) board pin).
+
+In the user module directory there is this 'micropython.mk' file:
+
+[code]
+USERMODULES_DIR := $(USERMOD_DIR)
+
+# Add all C files to SRC_USERMOD.
+SRC_USERMOD += $(USERMODULES_DIR)/lsm303dlhc.c
+
+CFLAGS_USERMOD += -I$(USERMODULES_DIR)
+
+[/code]
+
+All ok until now.
+
+I would like to add to my C file some mathematical functions
+( like 'sqrt' to calculate the standard deviation 
+that it's  equal to sqrt(variance) )
+
+I thought it was enough to add
+
+[code]
+#include <math.h>
+[/code]
+
+in "lsm303dlhc.c" and add the line  
+
+[code]
+LDFLAGS_USERMOD +=  -lm 
+[/code]
+
+in 'micropython.mk'.
+
+But that's not enough, it doesn't work. 
+What should I do?
+
